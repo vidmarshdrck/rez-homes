@@ -1,20 +1,35 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>REZ Homes: Boarding houses & rentals across Zambia</title><link rel="stylesheet" href="styles.css"></head><body>
-<header class="top"><div class="wrap nav"><a class="logo" href="#">REZ<span>Homes</span></a>
-<nav><a href="#listings">Browse</a><a href="#pricing">For landlords</a><a href="#contact">Contact</a></nav></div></header>
-<section class="hero"><div class="wrap"><h1>Find your next home in Zambia</h1>
-<p>Boarding houses for students and rentals for families relocating to a new city. Talk to landlords directly on WhatsApp.</p>
-<form id="search" class="search"><select id="city"><option value="">All cities</option><option>Lusaka</option><option>Ndola</option><option>Kitwe</option><option>Kabwe</option><option>Livingstone</option><option>Chingola</option><option>Kasama</option></select>
-<select id="type"><option value="">All types</option><option value="boarding">Boarding house / room</option><option value="house">House</option><option value="flat">Flat / apartment</option></select>
-<select id="price"><option value="">Any price</option><option value="1500">Up to K1,500</option><option value="4000">Up to K4,000</option><option value="10000">Up to K10,000</option></select>
-<button type="submit">Search</button></form></div></section>
-<main class="wrap"><section id="listings"><h2>Latest listings</h2><p class="sample">⚠️ SAMPLE DATA. These are example listings for demonstration only, not real properties.</p><div id="grid" class="grid"></div></section>
-<section id="pricing"><h2>List your property</h2><p>Landlords pay a simple monthly subscription. Tenants search for free. <em class="sample">Proposed pricing, not final.</em></p>
-<div class="tiers"><div class="tier"><h3>Starter</h3><p class="amt">K150<small>/month</small></p><ul><li>1 listing</li><li>5 photos</li><li>WhatsApp enquiries</li></ul></div>
-<div class="tier best"><h3>Landlord</h3><p class="amt">K350<small>/month</small></p><ul><li>Up to 5 listings</li><li>15 photos each</li><li>"Verified" badge after site check</li></ul></div>
-<div class="tier"><h3>Pro</h3><p class="amt">K750<small>/month</small></p><ul><li>Unlimited listings</li><li>Featured on the homepage</li><li>Social media promotion</li></ul></div></div>
-<p>First month free for early landlords (proposal). Pay by MTN or Airtel mobile money.</p></section>
-<section id="contact"><h2>Contact REZ</h2><p>Landlord wanting to list? Tenant with a question?</p>
-<a class="wa" id="waMain" href="#">Chat on WhatsApp</a><p class="sample">WhatsApp number is a placeholder (+260 XXX XXX XXX).</p></section></main>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B8A4A"><title>REZ Homes: Boarding houses & rentals across Zambia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css"></head><body>
+<header class="top"><div class="wrap nav"><a class="logo" href="#"><span class="mark">R</span>REZ<b>Homes</b></a>
+<nav class="dnav"><a href="#listings">Browse</a><a href="#pricing">For landlords</a><a href="#contact">Contact</a></nav>
+<a class="pill pill-gold sm" href="#pricing">List a property</a></div></header>
+<main class="wrap">
+<section class="hero fade">
+ <p class="eyebrow">Rentals · Boarding houses · Zambia</p>
+ <h1>Find your next<br><span>home</span>, fast.</h1>
+ <p class="lead">Rooms for students. Homes for families moving to a new city. Chat to landlords directly on WhatsApp.</p>
+ <div class="stats"><div class="stat"><b>7</b><small>cities</small></div><div class="stat"><b>K0</b><small>to search</small></div><div class="stat"><b>1 tap</b><small>WhatsApp</small></div></div>
+</section>
+<form id="search" class="card search fade">
+ <div class="chips" id="cityChips"></div>
+ <div class="row"><select id="type" aria-label="Type"><option value="">All types</option><option value="boarding">Boarding / room</option><option value="house">House</option><option value="flat">Flat</option></select>
+ <select id="price" aria-label="Price"><option value="">Any price</option><option value="1500">Up to K1,500</option><option value="4000">Up to K4,000</option><option value="10000">Up to K10,000</option></select>
+ <button class="pill pill-green" type="submit">Search</button></div>
+</form>
+<section id="listings"><div class="sechead"><h2>Latest listings</h2><span class="badge">SAMPLE DATA</span></div>
+<p class="note">Example listings for demonstration only, not real properties.</p><div id="grid" class="grid"></div></section>
+<section id="pricing"><div class="sechead"><h2>List your property</h2><span class="badge">PROPOSED</span></div>
+<p class="note">Landlords pay a simple monthly subscription. Tenants search free. Pricing not final.</p>
+<div class="tiers">
+<div class="card tier"><h3>Starter</h3><p class="amt">K150<small>/mo</small></p><ul><li>1 listing</li><li>5 photos</li><li>WhatsApp enquiries</li></ul></div>
+<div class="card tier best"><span class="pop">Most popular</span><h3>Landlord</h3><p class="amt">K350<small>/mo</small></p><ul><li>Up to 5 listings</li><li>15 photos each</li><li>"Verified" badge after site check</li></ul></div>
+<div class="card tier"><h3>Pro</h3><p class="amt">K750<small>/mo</small></p><ul><li>Unlimited listings</li><li>Featured on homepage</li><li>Social media promotion</li></ul></div></div>
+<p class="note">First month free for early landlords (proposal). Pay by MTN or Airtel mobile money.</p></section>
+<section id="contact" class="card cta"><h2>Questions? Let's talk.</h2><p>Landlord wanting to list, or tenant looking for a place?</p>
+<a class="pill pill-gold" id="waMain" href="#">Chat on WhatsApp</a><p class="note light">Placeholder number (+260 XXX XXX XXX).</p></section>
+</main>
 <footer><div class="wrap">© 2026 Real Estate Zambia (REZ), a Vidmar Holdings company · Property listings and advertising only.</div></footer>
+<nav class="bnav"><a href="#" class="on"><i>⌂</i>Home</a><a href="#listings"><i>⌕</i>Browse</a><a href="#pricing"><i>＋</i>List</a><a href="#contact"><i>✆</i>Chat</a></nav>
 <script src="app.js"></script></body></html>
