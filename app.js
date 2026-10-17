@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s), app=$("#app");
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const K=n=>"K"+Number(n||0).toLocaleString();
 const D=t=>t?new Date(t).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):"—";
-const TYPES={boarding:"Boarding house",room:"Room",apartment:"Apartment",house:"House",flat:"Flat",shop:"Shop / Store"};
+const TYPES={boarding:"Boarding house",room:"Room",apartment:"Apartment",flat:"Flat",house:"House",land:"Land / Plot",farm:"Farm",shop:"Shop / Store"};
 const CITIES=["Lusaka","Ndola","Kitwe","Kabwe","Livingstone","Chingola","Kasama"];
 const CITYLL={Lusaka:[-15.4167,28.2833],Ndola:[-12.96,28.64],Kitwe:[-12.81,28.21],Kabwe:[-14.44,28.45],Livingstone:[-17.85,25.86],Chingola:[-12.53,27.85],Kasama:[-10.21,31.18]};
 const PRICES=[["Under K1,000",0,999],["K1,000–2,000",1000,2000],["K2,000–5,000",2000,5000],["K5,000+",5000,1e9]];
@@ -23,7 +23,7 @@ const tags=l=>`<div class="tags">${isFeat(l)?'<span class="tag f">★ Featured</
 
 /** Builds a swipeable photo strip with dots for a listing's photos. */
 function photoCarousel(photos, opts={}){
-  const list=(photos&&photos.length?photos:["img/p1.jpg"]).slice(0,12);
+  const list=(photos&&photos.length?photos:["img/p1.jpg"]).slice(0,30);
   const cls=opts.hero?"phero":"pcard";
   return `<div class="pcar ${cls}" tabindex="0" aria-label="Photos"><div class="ptrack">${list.map((src,i)=>`<div class="pslide${i?"":" on"}"><img loading="${i?"lazy":"eager"}" src="${esc(src)}" alt=""></div>`).join("")}</div>${list.length>1?`<div class="pdots">${list.map((_,i)=>`<i class="${i?"":"on"}"></i>`).join("")}</div>`:""}</div>`;
 }
@@ -113,18 +113,24 @@ function home(){
  const feat=DB.publicListings().filter(isFeat).slice(0,12);
  const fw=$("#featwrap"); if(fw) fw.innerHTML=featuredStrip(feat);
  bindPhotoCarousels(app);
+ bindBoostCalc(app);
 }
-// ---------- Boost weeks selector (1-12 weeks, live total) ----------
-const boostWidget=(w)=>`<div class="bw" data-w="${w}"><div class="bwq">${[1,2,3,4,5].map(n=>`<button type="button" class="chip${n===w?" on":""}${n===BOOST.recommendedWeeks?" rec":""}" data-bw="${n}">${n===BOOST.recommendedWeeks?"★ 5 weeks (recommended)":n+" week"+(n>1?"s":"")}</button>`).join("")}</div>
+// ---------- Boost weeks selector (1–20 weeks, 5 recommended, live total) ----------
+/** Weeks control: stepper + slider. Recommended week is marked on the track. */
+const boostWidget=(w)=>`<div class="bw" data-w="${w}">
  <div class="bwrow"><button type="button" class="step" data-d="-1" aria-label="Fewer weeks">−</button><div class="bwv"><b class="bwn">${w}</b><span class="bwu"> week${w>1?"s":""}</span><small class="bwd">${bwDesc(w)}</small></div><button type="button" class="step" data-d="1" aria-label="More weeks">+</button></div>
  <input type="range" class="bwr" min="${BOOST.minWeeks}" max="${BOOST.maxWeeks}" value="${w}" aria-label="Boost weeks">
+ <div class="bwmarks" aria-hidden="true"><span>1</span><span class="recmark">★ ${BOOST.recommendedWeeks} recommended</span><span>${BOOST.maxWeeks}</span></div>
  <div class="bwt"><span>${K(BOOST.week)} × <span class="bwn2">${w}</span> week(s)</span><b class="bwtotal">${K(w*BOOST.week)}</b></div>
  <p class="note bwrec" style="margin:0">${w===BOOST.recommendedWeeks?`Recommended: ${BOOST.recommendedWeeks} weeks.`:`Recommended: ${BOOST.recommendedWeeks} weeks. You picked ${w}.`}</p></div>`;
 const bwDesc=w=>w===BOOST.recommendedWeeks?"Covers a full paid month (about 4.3 weeks)":w===4?"28 days — a little short of a calendar month":`${w*7} days`;
 function bindBoost(root,onChange){const el=root&&root.querySelector(".bw");if(!el)return;const setW=w=>{w=Math.max(BOOST.minWeeks,Math.min(BOOST.maxWeeks,w||1));el.dataset.w=w;
   el.querySelector(".bwn").textContent=w;el.querySelector(".bwn2").textContent=w;el.querySelector(".bwu").textContent=` week${w>1?"s":""}`;el.querySelector(".bwd").textContent=bwDesc(w);const rec=el.querySelector(".bwrec");if(rec)rec.textContent=w===BOOST.recommendedWeeks?`Recommended: ${BOOST.recommendedWeeks} weeks.`:`Recommended: ${BOOST.recommendedWeeks} weeks. You picked ${w}.`;
-  el.querySelector(".bwtotal").textContent=K(w*BOOST.week);el.querySelector(".bwr").value=w;el.querySelectorAll("[data-bw]").forEach(b=>b.classList.toggle("on",+b.dataset.bw===w));onChange&&onChange(w)};
- el.querySelectorAll("[data-bw]").forEach(b=>b.onclick=()=>setW(+b.dataset.bw));el.querySelectorAll(".step").forEach(b=>b.onclick=()=>setW(+el.dataset.w+ +b.dataset.d));el.querySelector(".bwr").oninput=e=>setW(+e.target.value);return()=>+el.dataset.w}
+  el.querySelector(".bwtotal").textContent=K(w*BOOST.week);el.querySelector(".bwr").value=w;onChange&&onChange(w)};
+ el.querySelectorAll(".step").forEach(b=>b.onclick=()=>setW(+el.dataset.w+ +b.dataset.d));el.querySelector(".bwr").oninput=e=>setW(+e.target.value);return()=>+el.dataset.w}
+/** Formats package + boost estimate line, e.g. K200 + 4 weeks × K100 = K600. */
+function packageBoostLine(planId,weeks,pct=0){const x=DB.packageBoostQuote(planId,weeks,pct);const boostPart=x.total<x.was?`${K(x.weekRate)} (−${x.pct}%)`:`${K(x.weekRate)}`;
+ return{...x,html:`${K(x.base)} + ${x.weeks} week${x.weeks>1?"s":""} × ${boostPart} = <b>${K(x.estimated)}</b>`,text:`${K(x.base)} + ${x.weeks} weeks × ${K(x.weekRate)} = ${K(x.estimated)}`}}
 // v5: "Apply for a discount". One offer per listing, held for BOOST_DISCOUNT_OFFER_HOURS, so re-ticking or reloading shows the same offer.
 function boostSheet(l){const band=DB.discountBand();let offer=DB.boostOffer(l.id),on=!!offer;const paused="Discount offers are paused while boost demand is high. Check again later.";
  sheet(`<h3>Boost: ${esc(l.title)}</h3><p class="note" style="margin:0">Shown first in search with a gold ★ Featured badge. Pick how many weeks.</p>${boostWidget(BOOST.recommendedWeeks)}
@@ -158,10 +164,19 @@ const pricingHTML=()=>`<section id="pricing"><div class="sechead"><h2>List your 
 <p class="note">Landlords pay a monthly subscription to advertise. Tenants search free.</p><div class="tiers t4">
 ${CFG.PLANS.map(p=>`<div class="card tier${p.popular?" best":""}">${p.popular?'<span class="pop">Most popular</span>':p.tag?`<span class="pop start">${esc(p.tag)}</span>`:""}<h3>${esc(p.name)} </h3><p class="amt">${K(p.price)}<small>/mo</small></p><ul>${p.perks.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}
 <div class="card tier"><h3>Boost / Featured </h3><p class="amt">${K(BOOST.week)}<small>/week</small></p><ul><li>Shown first in search</li><li>Gold ★ Featured badge</li><li>Choose 1 to ${BOOST.maxWeeks} weeks</li></ul></div></div>
-<div class="card box boostcalc" id="pboost"><div class="sechead"><h3>Boost calculator</h3></div>${boostWidget(BOOST.recommendedWeeks)}
-<div class="bundle"><b>Bundle example</b><p>Starter ${K(CFG.PLANS[0].price)} + 5-week boost ${K(5*BOOST.week)} = <b>${K(CFG.PLANS[0].price+5*BOOST.week)}</b></p><p>Landlord ${K(CFG.PLANS[1].price)} + 5-week boost ${K(5*BOOST.week)} = <b>${K(CFG.PLANS[1].price+5*BOOST.week)}</b></p><small class="note">A month is about 4.3 weeks, so a 5-week boost covers your whole paid month with a few days to spare.</small></div></div>
+<div class="card box boostcalc" id="pboost"><div class="sechead"><h3>Boost calculator</h3></div>
+<p class="note" style="margin:0 0 8px">Pick a package, then how many weeks to boost. The estimate updates as you move the slider.</p>
+<div class="chips" id="bcplan">${CFG.PLANS.map((p,i)=>`<button type="button" class="chip${i===0?" on":""}" data-plan="${p.id}">${esc(p.name)} ${K(p.price)}</button>`).join("")}</div>
+${boostWidget(BOOST.recommendedWeeks)}
+<p class="bestline" id="bestline">${packageBoostLine("starter",BOOST.recommendedWeeks).html}</p>
+</div>
 <div class="card box vfee"><div><h3>✓ Property verification </h3><p class="note" style="margin:0">Yearly fee per property. A REZ inspector visits, checks the photos and claims are true, and the listing earns the Verified badge for 12 months. Re-verification is due each year. If a tenant finds it doesn't match, it's taken off the site.</p></div><p class="amt">${K(CFG.VERIFICATION_FEE)}<small> /year</small></p></div>
 <p class="note">Pay by mobile money (MTN or Airtel), Binance (USDT, ETH or BTC), or PayPal. We'll send payment details after you submit.</p></section>`;
+/** Wires the pricing-page boost calculator: plan chips + live package+boost estimate. */
+function bindBoostCalc(root){const box=root&&root.querySelector("#pboost");if(!box)return;let planId="starter";
+ const paint=w=>{const line=packageBoostLine(planId,w);const el=box.querySelector("#bestline");if(el)el.innerHTML=line.html};
+ const gw=bindBoost(box,paint);paint(gw());
+ box.querySelectorAll("[data-plan]").forEach(b=>b.onclick=()=>{planId=b.dataset.plan;box.querySelectorAll("[data-plan]").forEach(x=>x.classList.toggle("on",x===b));paint(gw())})}
 
 // ---------- Payments ----------
 /** Shows payment method choices. We'll send details after submit — no account numbers here. */
@@ -465,7 +480,7 @@ function listingForm(){return`<form class="f" id="lf"><input name="title" requir
  <div class="row"><input name="rent" type="number" required min="0" placeholder="Monthly rent (K)"><input name="deposit" type="number" required min="0" placeholder="Security deposit (K)"></div>
  <div class="row"><input name="upfront" type="number" required min="0" max="12" placeholder="Upfront months"><input name="yard" placeholder="Yard / plot size (e.g. 30 × 40 m)"></div>
  <input name="criteria" placeholder="Criteria, comma separated (Student ID, Payslip, References)"><input name="amenities" placeholder="Amenities, comma separated (Wi-Fi, Borehole)">
- <span class="lbl">Photos (compressed and stored on this device)</span><input type="file" id="ph" accept="image/*" multiple><div class="thumbs" id="thumbs"></div>
+ <span class="lbl" id="phlbl">Photos (up to 10 on Starter)</span><input type="file" id="ph" accept="image/*" multiple><div class="thumbs" id="thumbs"></div><small class="note" id="phnote" style="margin:0">You can add up to 10 photos on Starter. Compresses and stays on this device.</small>
  <div class="card box" style="background:var(--gold2);box-shadow:none;margin:4px 0"><b>Verification ${K(CFG.VERIFICATION_FEE)}/year </b><p class="note" style="margin:4px 0 0">${CFG.VERIFICATION_FEE_SCOPE==="property"?"Each property":"Your first listing"} pays a yearly verification fee. A REZ inspector visits to confirm the photos and details are true, then your listing goes live with the ✓ Verified badge (valid 12 months) once your monthly plan is paid.</p></div>
  <div class="verify-choice"><span class="lbl">Verification</span>
  <label class="ck"><input type="radio" name="vpay" value="now" checked> Pay for verification now</label>
@@ -477,11 +492,12 @@ function bindListingForm(u){let type="boarding",city=CITIES[0],pin=null,photos=[
  const m=mkMap("pinmap",CITYLL[city],12);let mk;
  pick("#lt","t",v=>type=v);pick("#lc","c",v=>{city=v;if(!pin)m.setView(CITYLL[v],12)});
  m.on("click",e=>{pin=[+e.latlng.lat.toFixed(5),+e.latlng.lng.toFixed(5)];mk?mk.setLatLng(e.latlng):mk=L.marker(e.latlng).addTo(m);$("#pinl").textContent=`Pin: ${pin.join(", ")}`});
- $("#ph").onchange=async e=>{for(const f of [...e.target.files].slice(0,6))photos.push(await compress(f));$("#thumbs").innerHTML=photos.map(p=>`<img src="${p}">`).join("")};
+ const cap=DB.photoLimit(u);const pl=DB.plan(u);const phl=$("#phlbl"),phn=$("#phnote");if(phl)phl.textContent=`Photos (up to ${cap} on ${pl.name})`;if(phn)phn.textContent=`You can add up to ${cap} photos on ${pl.name}. Compresses and stays on this device.`;
+ $("#ph").onchange=async e=>{const room=Math.max(0,cap-photos.length);for(const f of [...e.target.files].slice(0,room))photos.push(await compress(f));if(photos.length>cap)photos=photos.slice(0,cap);$("#thumbs").innerHTML=photos.map(p=>`<img src="${p}">`).join("");if(e.target.files.length&&room===0)toast(`Your plan allows ${cap} photos`)};
  $("#lf").onsubmit=e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));const vpay=(document.querySelector('input[name=vpay]:checked')||{}).value||"now";
   const ll=pin||CITYLL[city];const sp=s=>(s||"").split(",").map(x=>x.trim()).filter(Boolean);
   try{
-    const listing=DB.addListing({title:d.title,type,city,address:d.address,lat:ll[0],lng:ll[1],rent:+d.rent,deposit:+d.deposit,upfront:+d.upfront,yard:d.yard,criteria:sp(d.criteria),amenities:sp(d.amenities),photos:photos.slice(),owner:u.id},{draft:vpay==="later"});
+    const listing=DB.addListing({title:d.title,type,city,address:d.address,lat:ll[0],lng:ll[1],rent:+d.rent,deposit:+d.deposit,upfront:+d.upfront,yard:d.yard,criteria:sp(d.criteria),amenities:sp(d.amenities),photos:photos.slice(0,DB.photoLimit(u)),owner:u.id},{draft:vpay==="later"});
     if(vpay==="now"){toast("Property saved — choose how to pay");rerender();return payFlow({purpose:"verification",amount:CFG.VERIFICATION_FEE,listingId:listing.id,label:`Verification: ${listing.title}`,onDone:rerender})}
     toast("Saved. Pay for verification later from your listings.");rerender();
   }catch(x){toast("Could not save — try fewer or smaller photos")}};

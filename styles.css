@@ -309,3 +309,11 @@ s.was{color:#9aa69f;font-weight:600;font-size:.62em;text-decoration-thickness:2p
   .feat-card{flex-basis:240px}
   .pcar.phero{min-height:360px}
 }
+
+/* v6.1 boost calculator */
+.bwmarks{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--mut);margin:-4px 0 8px;padding:0 2px}
+.bwmarks .recmark{color:var(--g);font-weight:700}
+.bestline{font-size:16px;font-weight:600;margin:12px 0 0;padding:12px 14px;background:var(--g2);border-radius:12px;color:var(--ink)}
+.bestline b{color:var(--g);font-size:18px}
+.boostcalc .chips{margin-bottom:10px;flex-wrap:wrap;gap:6px}
+.phnote-cap{font-size:12px}

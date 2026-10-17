@@ -63,3 +63,8 @@ open index.html   # macOS; on Linux use xdg-open
 - Boost calculator: 1–5 weeks, 5 recommended, live totals and an off-recommendation note.
 - Mobile bottom nav: glassy (backdrop-filter) with solid fallback.
 - Agent info page (`#/agent-info`): ID, gear, handbook; commission varies — no amounts shown.
+
+### v6.1
+- Example listings restored (no sample/example tags on cards). Starter allows 10 photos.
+- Boost calculator: 1–20 weeks (5 recommended), live package + boost estimate. Weekly boost rate K100.
+- Test role accounts seeded for preview (credentials not shown in the UI).

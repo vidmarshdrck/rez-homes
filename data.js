@@ -6,7 +6,65 @@ const C=window.REZ_CONFIG, DAY=864e5;
 const K=k=>"rez_"+k, get=(k,d)=>{try{return JSON.parse(localStorage.getItem(K(k)))??d}catch(e){return d}}, set=(k,v)=>localStorage.setItem(K(k),JSON.stringify(v));
 const uid=()=>Math.random().toString(36).slice(2,10);
 const now=()=>Date.now()+get("clock",0); // demo clock offset (admin can advance it to test expiry)
-const SAMPLE=[]; // no seed listings — real inventory comes from landlords after approval
+const SAMPLE=[
+{id:"s1",title:"Self-contained student rooms near CBU",city:"Kitwe",type:"room",rent:1200,deposit:1200,upfront:3,yard:"Shared yard, 600 m²",address:"Riverside, Kitwe",lat:-12.808,lng:28.237,photos:["img/p5.jpg","img/p1.jpg","img/p2.jpg","img/p4.jpg"],criteria:["Student ID","Guardian contact","1 reference"],amenities:["Wi-Fi","Water incl.","Security guard"],vstatus:"verified",featured:true,verifiedAt:Date.now()-20*DAY,verifiedUntil:Date.now()+345*DAY},
+{id:"s2",title:"Girls' boarding house, Northrise",city:"Ndola",type:"boarding",rent:950,deposit:500,upfront:2,yard:"Walled plot, 30 × 40 m",address:"Northrise, Ndola",lat:-12.948,lng:28.651,photos:["img/p2.jpg","img/p3.jpg","img/p5.jpg"],criteria:["Student ID","Guardian contact"],amenities:["Water & power incl.","Shared kitchen"],vstatus:"verified",verifiedAt:Date.now()-18*DAY,verifiedUntil:Date.now()+347*DAY},
+{id:"s3",title:"3-bed family house, Kabulonga",city:"Lusaka",type:"house",rent:9500,deposit:9500,upfront:3,yard:"Garden, 1,200 m²",address:"Kabulonga, Lusaka",lat:-15.415,lng:28.335,photos:["img/p7.jpg","img/p6.jpg","img/p8.jpg","img/p3.jpg"],criteria:["Payslip or bank statement","NRC","2 references"],amenities:["Borehole","Parking ×2","Walled & gated"],vstatus:"verified",featured:true,verifiedAt:Date.now()-15*DAY,verifiedUntil:Date.now()+350*DAY},
+{id:"s4",title:"2-bed flat near UNZA",city:"Lusaka",type:"flat",rent:3800,deposit:3800,upfront:2,yard:"Shared compound",address:"Great East Rd, Lusaka",lat:-15.392,lng:28.329,photos:["img/p4.jpg","img/p1.jpg","img/p9.jpg"],criteria:["Payslip","NRC"],amenities:["Parking","Solar backup"],vstatus:"verified",verifiedAt:Date.now()-12*DAY,verifiedUntil:Date.now()+353*DAY},
+{id:"s5",title:"Boarding rooms near Mulungushi Univ.",city:"Kabwe",type:"boarding",rent:800,deposit:400,upfront:3,yard:"Plot, 20 × 30 m",address:"Kabwe",lat:-14.44,lng:28.45,photos:["img/p1.jpg","img/p2.jpg","img/p5.jpg"],criteria:["Student ID"],amenities:["Wi-Fi"],vstatus:"verified",verifiedAt:Date.now()-10*DAY,verifiedUntil:Date.now()+355*DAY},
+{id:"s6",title:"2-bed house, Dambwa",city:"Livingstone",type:"house",rent:4500,deposit:4500,upfront:1,yard:"Garden, 800 m²",address:"Dambwa, Livingstone",lat:-17.84,lng:25.84,photos:["img/p6.jpg","img/p7.jpg","img/p3.jpg"],criteria:["Payslip","NRC","1 reference"],amenities:["Garden","Water tank"],vstatus:"verified",verifiedAt:Date.now()-9*DAY,verifiedUntil:Date.now()+356*DAY},
+{id:"s7",title:"Shop space on Cha Cha Cha Road",city:"Lusaka",type:"shop",rent:7000,deposit:7000,upfront:3,yard:"Shop floor 45 m², shared parking",address:"Cha Cha Cha Rd, Lusaka CBD",lat:-15.4214,lng:28.2836,photos:["img/p9.jpg","img/p8.jpg","img/p4.jpg"],criteria:["PACRA business registration","NRC","Trading licence (council)"],amenities:["Street frontage","Roller shutter","Prepaid ZESCO meter","Toilet"],vstatus:"verified",verifiedAt:Date.now()-8*DAY,verifiedUntil:Date.now()+357*DAY},
+{id:"s8",title:"Residential plot, Chamba Valley",city:"Lusaka",type:"land",rent:2500,deposit:2500,upfront:1,yard:"1,000 m² titled plot",address:"Chamba Valley, Lusaka",lat:-15.355,lng:28.355,photos:["img/p8.jpg","img/p6.jpg","img/p7.jpg"],criteria:["NRC","Proof of funds"],amenities:["Titled","Road access","Near power line"],vstatus:"verified",verifiedAt:Date.now()-7*DAY,verifiedUntil:Date.now()+358*DAY},
+{id:"s9",title:"Smallholding farm near Chingola",city:"Chingola",type:"farm",rent:6000,deposit:6000,upfront:2,yard:"8 hectares, borehole",address:"Hippo Pool road, Chingola",lat:-12.52,lng:27.86,photos:["img/p3.jpg","img/p6.jpg","img/p8.jpg","img/p5.jpg"],criteria:["NRC","Farming experience preferred"],amenities:["Borehole","Fenced","Workers' rooms"],vstatus:"verified",verifiedAt:Date.now()-6*DAY,verifiedUntil:Date.now()+359*DAY},
+{id:"s10",title:"1-bed apartment, Nkana East",city:"Kitwe",type:"apartment",rent:2800,deposit:2800,upfront:2,yard:"Shared parking",address:"Nkana East, Kitwe",lat:-12.82,lng:28.22,photos:["img/p4.jpg","img/p5.jpg","img/p1.jpg"],criteria:["Payslip","NRC"],amenities:["Security","Backup solar"],vstatus:"verified",verifiedAt:Date.now()-5*DAY,verifiedUntil:Date.now()+360*DAY}
+].map(x=>({...x,sample:true,owner:"sample",created:Date.now()-20*DAY,everVerified:true}));
+
+/** Seeds browseable catalog extras + test role accounts (credentials not shown in the UI). */
+function ensureTestSeed(){
+ if(get("seed_v61",false))return;
+ const DAY=864e5,n=now();
+ const mk=(id,name,email,password,extra)=>({id,name,email,password,role:extra.role||"tenant",roles:extra.roles||["tenant"],phone:extra.phone||"+260970000000",google:false,plan:extra.plan||"starter",subPaidUntil:extra.subPaidUntil||0,saved:[],trips:[],meets:{},created:n-30*DAY,...extra});
+ let us=users();
+ const byEmail=e=>us.find(u=>u.email===e);
+ if(!byEmail("tenant@rez.test"))us.push(mk("u-tenant","Thandi Mwila","tenant@rez.test","rez-test-1",{role:"tenant",roles:["tenant"],profile:{occupation:"Nurse",employer:"UTH",income:"K8,000",people:2}}));
+ if(!byEmail("landlord@rez.test"))us.push(mk("u-landlord","Chanda Banda","landlord@rez.test","rez-test-1",{role:"landlord",roles:["tenant","landlord"],plan:"landlord",subPaidUntil:n+25*DAY,phone:"+260971111111"}));
+ if(!byEmail("agent@rez.test"))us.push(mk("u-agent","Mwansa Phiri","agent@rez.test","rez-test-1",{role:"agent",roles:["tenant","agent"],phone:"+260972222222",agent:{status:"approved",nrc:"111111/11/1",email:"agent@rez.test",experienceYears:6,experience:"Estate agency across Copperbelt",licenceType:"eaa",licenceNo:"EAA-1001",docs:[{name:"CV.pdf",kind:"cv"}],submittedAt:n-40*DAY,reviewedAt:n-35*DAY,reviewedBy:"REZ Staff",history:[{at:n-40*DAY,event:"Application submitted"},{at:n-35*DAY,event:"Approved"}],areas:["Kitwe","Ndola"],areaText:"Copperbelt",availability:["weekdays","weekends"],baseCity:"Kitwe",lat:-12.81,lng:28.21,locSource:"city",agreementAt:n-40*DAY,agreementVersion:C.AGENT_AGREEMENT_VERSION}}));
+ if(!byEmail("staff@rez.test"))us.push(mk("u-staff","REZ Staff","staff@rez.test","rez-test-1",{role:"admin",roles:["admin"],phone:"+260973333333"}));
+ set("users",us);
+ // Landlord-owned listing (shows payments + portal features)
+ const rawL=get("listings",[]);
+ if(!rawL.some(l=>l.id==="ll1")){
+  rawL.push({id:"ll1",title:"Sunny 2-room flat, Roma",city:"Lusaka",type:"flat",rent:3200,deposit:3200,upfront:2,yard:"Shared compound",address:"Roma, Lusaka",lat:-15.39,lng:28.32,photos:["img/p4.jpg","img/p1.jpg","img/p2.jpg","img/p5.jpg"],criteria:["Payslip","NRC"],amenities:["Parking","Water tank"],vstatus:"verified",everVerified:true,verifiedAt:n-14*DAY,verifiedUntil:n+351*DAY,owner:"u-landlord",created:n-20*DAY,payConfirmed:true,feePaid:true,inspection:{inspector:"Mwansa Phiri (REZ field agent)",date:new Date(n-14*DAY).toISOString().slice(0,10),notes:"Photos and claims match.",result:"verified"}});
+  set("listings",rawL);
+ }
+ // Payments history for landlord
+ const pays=get("payments",[]);
+ if(!pays.length){
+  set("payments",[
+   {id:"pay1",ref:"REZ-260101-AAAA",purpose:"subscription",amount:350,method:"MTN Mobile Money",planId:"landlord",landlord:"u-landlord",status:"recorded",created:n-28*DAY,recordedAt:n-27*DAY},
+   {id:"pay2",ref:"REZ-260102-BBBB",purpose:"verification",amount:C.VERIFICATION_FEE,method:"Airtel Money",listingId:"ll1",landlord:"u-landlord",status:"recorded",created:n-20*DAY,recordedAt:n-19*DAY},
+   {id:"pay3",ref:"REZ-260103-CCCC",purpose:"boost",amount:500,method:"PayPal",listingId:"ll1",landlord:"u-landlord",weeks:5,status:"pending",created:n-2*DAY}
+  ]);
+ }
+ // Agent certificate
+ const certs=get("certs",[]);
+ if(!certs.some(c=>c.agentId==="u-agent")){
+  set("certs",[{id:"cert-agent",no:"REZ-INS-1001",agentId:"u-agent",issued:n-35*DAY,expires:n+C.INSPECTOR_CERT_DAYS*DAY,issuedBy:"REZ Staff",revoked:false}]);
+ }
+ // Commission row so earnings tab has content
+ const cms=get("commissions",[]);
+ if(!cms.length){
+  set("commissions",[{id:"cm1",agentId:"u-agent",taskId:"t-seed",listingId:"ll1",amount:C.AGENT_COMMISSION,status:"pending",created:n-10*DAY}]);
+ }
+ // Tenant application on a sample listing
+ const apps=get("apps",[]);
+ if(!apps.length){
+  set("apps",[{id:"app1",name:"Thandi Mwila",phone:"+260970000000",moveIn:new Date(n+14*DAY).toISOString().slice(0,10),msg:"Looking for a quiet place near work.",people:2,seen:"no",listingId:"s3",listingTitle:"3-bed family house, Kabulonga",landlord:"sample",tenant:"u-tenant",tenantEmail:"tenant@rez.test",meets:["Payslip or bank statement","NRC"],criteriaTotal:3,status:"Submitted",created:n-3*DAY}]);
+ }
+ set("seed_v61",true);
+}
+ensureTestSeed();
+
 // migrate v2 records (status "pending", verified flag) once
 (()=>{const a=get("listings",[]);if(a.some(l=>!l.vstatus)){set("listings",a.map(l=>l.vstatus?l:{...l,vstatus:l.verified?"verified":"awaiting_payment",payConfirmed:false}))}})();
 const users=()=>get("users",[]), userById=id=>users().find(u=>u.id===id);
@@ -120,7 +178,11 @@ const DB={
  drawDiscountPct(b){b=b||discountBand();return b.off?0:b.min+Math.floor(Math.random()*(b.max-b.min+1))},
  // Whole kwacha, never below weeks x floor, never above the full price.
  boostQuote(weeks,pct=0,o={}){const wk=o.week??C.BOOST.week,fl=o.floorPerWeek??C.BOOST_PRICE_FLOOR_PER_WEEK;weeks=Math.max(C.BOOST.minWeeks,Math.min(C.BOOST.maxWeeks,Math.round(+weeks||1)));
-  const was=weeks*wk,raw=Math.round(was*(100-pct)/100),min=Math.round(weeks*fl),total=Math.min(was,Math.max(min,raw));return{weeks,was,total,pct,floorApplied:raw<min,saved:was-total}},
+  const was=weeks*wk,raw=Math.round(was*(100-pct)/100),min=Math.round(weeks*fl),total=Math.min(was,Math.max(min,raw));return{weeks,was,total,pct,floorApplied:raw<min,saved:was-total,weekRate:wk}},
+ /** Package base fee + boost weeks × weekly rate (discount applies to the boost part only). */
+ packageBoostQuote(planId,weeks,pct=0,o={}){const plan=C.PLANS.find(p=>p.id===planId)||C.PLANS[0];const b=DB.boostQuote(weeks,pct,o);return{planId:plan.id,planName:plan.name,base:plan.price,weekRate:b.weekRate,...b,estimated:plan.price+b.total}},
+ /** Max photos allowed for a user's plan (Starter = 10). */
+ photoLimit(u){const p=plan(u||DB.user());return p.photos||10},
  boostOffer:listingId=>get("boostOffers",[]).filter(x=>x.listingId===listingId&&x.expires>now()).sort((a,b)=>b.created-a.created)[0]||null,
  // One offer per listing until it expires: ticking again, re-opening or reloading returns the same offer.
  getBoostOffer(listingId){const u=DB.user(),l=listing(listingId);if(!u||!l||l.owner!==u.id)throw Error("You can only ask for a discount on your own listing");
@@ -140,7 +202,7 @@ const DB={
  signIn(email,password){const u=users().find(u=>u.email===email&&u.password===password);if(!u)throw Error("Wrong email or password");set("session",u.id);return u},
  signOut(){localStorage.removeItem(K("session"))},
  updateUser(p,id){const s=id||get("session");set("users",users().map(u=>u.id===s?{...u,...p}:u))},
- staffDemo(){const email="staff.demo@rez.example";let u=users().find(x=>x.email===email);if(!u){const us=users();u={id:"staff-demo",name:"REZ Staff",email,password:"",role:"admin",saved:[],trips:[],meets:{}};us.push(u);set("users",us)}set("session",u.id);return u},
+ staffDemo(){ensureTestSeed();let u=users().find(x=>x.email==="staff@rez.test")||users().find(x=>x.role==="admin");if(!u){const us=users();u={id:"u-staff",name:"REZ Staff",email:"staff@rez.test",password:"rez-test-1",role:"admin",roles:["admin"],saved:[],trips:[],meets:{}};us.push(u);set("users",us)}set("session",u.id);return u},
  applications:()=>get("apps",[]),
  apply(a){const x=get("apps",[]);const n={...a,id:uid(),status:"Submitted",created:now()};x.push(n);set("apps",x);return n},
  setAppStatus(id,status){set("apps",get("apps",[]).map(a=>a.id===id?{...a,status}:a))},
