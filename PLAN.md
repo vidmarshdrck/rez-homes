@@ -30,6 +30,11 @@ Search by city, type and price, open a listing, then tap "Enquire on WhatsApp" (
 ## Proposed pricing (proposal only)
 PROPOSED (v3): Starter K200/month (1 listing), Landlord K350 (5 listings), Pro K1,000 (unlimited plus featured placement). Boost K100/week or K300/month. One-time verification K250 per property. No fees are charged until the lawyer answers the Estate Agents Act question (`PAYMENTS_ENABLED=false`).
 
+PROPOSED (v4): verification K500 per property per year; boost K100/week × 1–12 weeks (5 weeks recommended); field agent commission K150 per approved inspection.
+
+## Field agents (v4)
+Existing estate agents become REZ field agents rather than competitors. They inspect nearby properties in their free time, file a checklist report with photos, and earn a commission once staff approve it. Needs: a lawyer-reviewed agent agreement and the Estate Agents Act answer.
+
 ## Open items / risks
 - Get counsel to confirm whether Estate Agents Act registration applies (see sec_research_brief.md Q7).
 - Data Protection Act 2021: add a privacy notice before collecting real data.

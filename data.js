@@ -1,4 +1,4 @@
-// REZ data layer (v3). Everything is stored in this browser's localStorage today.
+// REZ data layer (v4). Everything is stored in this browser's localStorage today.
 // To move to Supabase, re-implement these functions with the Supabase client
 // (see ../supabase/README.md for the table-by-table mapping). The UI only calls DB.*.
 const DB=(()=>{
@@ -30,7 +30,8 @@ function status(l){
  if(l.hidden)return"occupied";
  const u=userById(l.owner);return subActive(u)?"active":u?.subPaidUntil?"expired":"unpaid";
 }
-const listings=()=>[...SAMPLE,...raw()].map(l=>({...l,status:status(l),views:(get("views",{})[l.id]||0),verified:l.vstatus==="verified"}));
+const vexp=l=>!l.sample&&l.vstatus==="verified"&&!!l.verifiedUntil&&l.verifiedUntil<now(); // annual re-verification due
+const listings=()=>[...SAMPLE,...raw()].map(l=>({...l,status:status(l),views:(get("views",{})[l.id]||0),verified:l.vstatus==="verified"&&!vexp(l),vexpired:vexp(l)}));
 const listing=id=>listings().find(x=>x.id===id);
 const upd=(id,p)=>set("listings",raw().map(x=>x.id===id?{...x,...(typeof p==="function"?p(x):p)}:x));
 const log=(id,text,by)=>upd(id,x=>({notes:[...(x.notes||[]),{at:now(),text,by:by||(DB.user()||{}).name||"system"}]}));
@@ -38,6 +39,25 @@ const feeRequired=(ownerId)=>C.VERIFICATION_FEE>0&&(C.VERIFICATION_FEE_SCOPE==="
 const ref=()=>"REZ-"+new Date(now()).toISOString().slice(2,10).replace(/-/g,"")+"-"+Math.random().toString(36).slice(2,6).toUpperCase();
 const activeCount=ownerId=>listings().filter(l=>l.owner===ownerId&&l.status==="active").length;
 
+// ----- v4 helpers -----
+const CITYLL={Lusaka:[-15.4167,28.2833],Ndola:[-12.96,28.64],Kitwe:[-12.81,28.21],Kabwe:[-14.44,28.45],Livingstone:[-17.85,25.86],Chingola:[-12.53,27.85],Kasama:[-10.21,31.18]};
+const km=(a,b)=>{if(!a||!b||a.lat==null||b.lat==null)return 9999;const r=x=>x*Math.PI/180,dl=r(b.lat-a.lat),dg=r(b.lng-a.lng),h=Math.sin(dl/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dg/2)**2;return 12742*Math.asin(Math.sqrt(h))};
+const ACTIVE_T=["open","offered","accepted","submitted"];
+// One live task per listing that needs an inspection: fee recorded (or no fee due) and not yet inspected, or annual re-verification paid.
+function ensureTasks(){const ts=get("tasks",[]);let ch=false;
+ raw().forEach(l=>{const need=((l.vstatus==="awaiting_payment"&&l.payConfirmed)||(l.vstatus==="verified"&&l.renewalPaid));
+  if(need&&!ts.some(t=>t.listingId===l.id&&ACTIVE_T.includes(t.status))&&!(l.vstatus==="awaiting_payment"&&l.staffHandling)){ts.push({id:"t"+uid(),listingId:l.id,kind:l.vstatus==="verified"?"renewal":"verification",status:"open",commission:C.AGENT_COMMISSION,created:now()});ch=true}});
+ if(ch)set("tasks",ts)}
+const updTask=(id,p)=>{let out;set("tasks",get("tasks",[]).map(t=>t.id===id?(out={...t,...p}):t));return out};
+const closeTasks=(lid,why,sts=["open","offered"])=>set("tasks",get("tasks",[]).map(t=>t.listingId===lid&&sts.includes(t.status)?{...t,status:why,closedAt:now()}:t));
+const fmtK=n=>"K"+Number(n||0).toLocaleString();
+const fmtDT=s=>s?new Date(s).toLocaleString("en-GB",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"";
+function tplData(a){const l=listing(a.listingId)||{},ll=userById(l.owner)||{},t=userById(a.tenant)||{},base=location.origin+location.pathname;
+ return{tenant_name:(a.name||t.name||"").split(" ")[0],listing_title:l.title||a.listingTitle,city:l.city||"",address:l.address||"",landlord_name:ll.name||"The landlord",landlord_phone:ll.phone||"(landlord phone)",
+  viewing_date:fmtDT(a.viewingAt),landlord_note_line:a.landlordNote?` Note from the landlord: "${a.landlordNote}"`:"",rent:fmtK(l.rent),deposit:fmtK(l.deposit),upfront:l.upfront,move_in_total:fmtK((l.rent||0)*(l.upfront||0)+(+l.deposit||0)),
+  directions_url:`https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lng}`,listing_url:`${base}#/l/${l.id}`,site_url:base,landlord_wa_url:window.REZ_TPL?REZ_TPL.waLink(ll.phone,"Hi, about "+(l.title||"")):""}}
+function notify(userId,key,data,link,extra){const r=window.REZ_TPL?.render(key,"in_app",data)||{title:key,body:""};const n={id:uid(),userId,key,title:r.title,body:r.body,data,link:link||"",created:now(),read:false,channels:["in_app"],pendingChannels:["email","sms","whatsapp"],delivery:C.DELIVERY_ENABLED?"queued":"preview_only",...(extra||{})};set("notifs",[...get("notifs",[]),n]);return n}
+function notifyApp(a,key){return notify(a.tenant,key,tplData(a),"#/l/"+a.listingId,{appId:a.id,listingId:a.listingId,tenantPhone:a.phone,tenantEmail:a.tenantEmail})}
 const DB={
  now,DAY,plan,subActive,feeRequired,
  listings,listing,
@@ -47,8 +67,8 @@ const DB={
  updateListing:upd,
  submitForVerification(id){const l=listing(id);const need=feeRequired(l.owner)&&!l.feePaid;upd(id,{vstatus:"awaiting_payment",payConfirmed:!need,submittedAt:now()});log(id,need?`Submitted. Verification fee K${C.VERIFICATION_FEE} due.`:"Submitted. No verification fee due; awaiting inspection booking.")},
  // ----- staff: verification -----
- scheduleInspection(id,{date,inspector}){upd(id,{vstatus:"inspection_scheduled",inspection:{...(listing(id).inspection||{}),scheduledFor:date,inspector}});log(id,`Inspection scheduled for ${date} with ${inspector}.`)},
- completeInspection(id,{result,inspector,date,notes,photos}){const ok=result==="verified";upd(id,x=>({vstatus:ok?"verified":"rejected",everVerified:x.everVerified||ok,flagReverify:false,hidden:ok?false:x.hidden,verifiedAt:ok?now():x.verifiedAt,inspection:{...(x.inspection||{}),inspector,date,notes,photos:photos||[],result,recordedAt:now()}}));log(id,`Inspection ${ok?"passed: Verified":"failed: Rejected"} by ${inspector} on ${date}. ${notes||""}`)},
+ scheduleInspection(id,{date,inspector}){closeTasks(id,"handled_by_staff");upd(id,{vstatus:"inspection_scheduled",inspection:{...(listing(id).inspection||{}),scheduledFor:date,inspector}});log(id,`Inspection scheduled for ${date} with ${inspector}.`)},
+ completeInspection(id,{result,inspector,date,notes,photos,checks},viaTask){if(!viaTask)closeTasks(id,"handled_by_staff",["open","offered","accepted"]);const ok=result==="verified";upd(id,x=>({vstatus:ok?"verified":"rejected",everVerified:x.everVerified||ok,flagReverify:false,hidden:ok?false:x.hidden,verifiedAt:ok?now():x.verifiedAt,verifiedUntil:ok?now()+C.VERIFICATION_PERIOD_DAYS*DAY:x.verifiedUntil,renewalPaid:false,inspection:{...(x.inspection||{}),inspector,date,notes,photos:photos||[],checks:checks||null,result,recordedAt:now()}}));log(id,`Inspection ${ok?"passed: Verified":"failed: Rejected"} by ${inspector} on ${date}. ${notes||""}`)},
  flagReverify(id,reason){upd(id,{flagReverify:true});log(id,"Flagged for re-verification: "+reason)},
  // ----- lifecycle -----
  markOccupied(id,by){upd(id,{hidden:true,occupiedSince:now(),leavingDate:null,hiddenBy:by});log(id,`Marked occupied (hidden) by ${by}.`)},
@@ -59,7 +79,7 @@ const DB={
   upd(id,{hidden:false,leavingDate:leavingDate||null,reactivatedAt:now()});log(id,leavingDate?`Tenant leaving ${leavingDate}: relisted early.`:"Reactivated by landlord.");
   return subActive(u)?{ok:true}:{needPayment:true}},
  // ----- payments (placeholder: nothing is charged) -----
- createPayment({purpose,listingId,landlord,amount,method,planId}){const p={id:uid(),ref:ref(),purpose,listingId:listingId||null,landlord,amount,method,planId:planId||null,status:"pending",created:now()};set("payments",[...get("payments",[]),p]);return p},
+ createPayment({purpose,listingId,landlord,amount,method,planId,weeks}){const p={id:uid(),ref:ref(),purpose,listingId:listingId||null,landlord,amount,method,planId:planId||null,weeks:weeks||null,status:"pending",created:now()};set("payments",[...get("payments",[]),p]);return p},
  payments:()=>get("payments",[]),
  // Staff records a payment that arrived outside the site (e.g. mobile money). Boaz verifies transaction_id + amount + timestamp.
  recordPayment(pid,{transaction_id,amount,paid_at,recorded_by}){
@@ -68,9 +88,9 @@ const DB={
   if(+amount!==+p.amount)throw Error(`Amount K${amount} does not match the K${p.amount} due`);
   if(ps.some(x=>x.transaction_id===transaction_id))throw Error("This transaction ID is already recorded");
   Object.assign(p,{status:"recorded",transaction_id,paid_amount:+amount,paid_at,recorded_by,recorded_at:now(),boaz_verified:false});set("payments",ps);
-  if(p.purpose==="verification"&&p.listingId){upd(p.listingId,{payConfirmed:true,feePaid:true});log(p.listingId,`Verification fee recorded (txn ${transaction_id}).`,recorded_by)}
+  if(p.purpose==="verification"&&p.listingId){const l=listing(p.listingId);if(l.vstatus==="verified"){upd(p.listingId,{renewalPaid:true});log(p.listingId,`Annual re-verification fee recorded (txn ${transaction_id}). Inspection task created.`,recorded_by)}else{upd(p.listingId,{payConfirmed:true,feePaid:true});log(p.listingId,`Verification fee recorded (txn ${transaction_id}).`,recorded_by)}}
   if(p.purpose==="subscription"){const u=userById(p.landlord);const from=Math.max(now(),u.subPaidUntil||0);DB.updateUser({subPaidUntil:from+C.LISTING_PERIOD_DAYS*DAY,plan:p.planId||u.plan},u.id)}
-  if(p.purpose==="boost"&&p.listingId){const l=listing(p.listingId);upd(p.listingId,{boostUntil:Math.max(now(),l.boostUntil||0)+7*DAY})}
+  if(p.purpose==="boost"&&p.listingId){const l=listing(p.listingId);const wk=Math.min(C.BOOST.maxWeeks,Math.max(1,+p.weeks||1));upd(p.listingId,{boostUntil:Math.max(now(),l.boostUntil||0)+wk*7*DAY,boostWeeks:wk});log(p.listingId,`Boost ${wk} week(s) recorded (txn ${transaction_id}).`,recorded_by)}
   return p},
  // ----- metrics -----
  lastViewed:()=>get("lastViewed",null),
@@ -89,6 +109,50 @@ const DB={
  applications:()=>get("apps",[]),
  apply(a){const x=get("apps",[]);const n={...a,id:uid(),status:"Submitted",created:now()};x.push(n);set("apps",x);return n},
  setAppStatus(id,status){set("apps",get("apps",[]).map(a=>a.id===id?{...a,status}:a))},
+ // ----- tenant profile (optional fields; saved on the user) -----
+ saveTenantProfile(p){DB.updateUser({profile:{...(DB.user()?.profile||{}),...p}})},
+ // ----- acceptance -> notification (in-app now; email/SMS/WhatsApp at launch) -----
+ acceptApplication(id,{viewingAt,note}={}){const a=get("apps",[]).find(x=>x.id===id);if(!a)throw Error("Application not found");
+  const seen=a.seen==="yes";if(!seen&&!viewingAt)throw Error("Propose a viewing date and time");
+  set("apps",get("apps",[]).map(x=>x.id===id?{...x,status:"Accepted",acceptedAt:now(),viewingAt:seen?null:viewingAt,landlordNote:note||""}:x));
+  return notifyApp({...a,viewingAt,landlordNote:note||""},seen?"application_accepted_pay":"application_accepted_viewing")},
+ declineApplication(id){const a=get("apps",[]).find(x=>x.id===id);DB.setAppStatus(id,"Declined");return notifyApp(a,"application_declined")},
+ tplData,
+ notifications:uid2=>get("notifs",[]).filter(n=>n.userId===(uid2||get("session"))).sort((a,b)=>b.created-a.created),
+ unread:()=>DB.notifications().filter(n=>!n.read).length,
+ markRead(id){set("notifs",get("notifs",[]).map(n=>n.id===id?{...n,read:true}:n))},
+ markAllRead(){const s=get("session");set("notifs",get("notifs",[]).map(n=>n.userId===s?{...n,read:true}:n))},
+ // ----- field agents (existing estate agents working for REZ as inspectors) -----
+ agents:()=>users().filter(u=>u.role==="agent"&&u.agent),
+ saveAgentProfile(p){const u=DB.user();if(!p.agreement&&!u.agent?.agreementAt)throw Error("Tick the agent agreement to continue");
+  const prev=u.agent||{status:"pending"};const ll=p.lat!=null?[+p.lat,+p.lng]:prev.lat!=null&&p.baseCity===prev.baseCity?[prev.lat,prev.lng]:CITYLL[p.baseCity]||CITYLL.Lusaka;
+  DB.updateUser({role:"agent",name:p.name||u.name,phone:p.phone||u.phone,agent:{...prev,nrc:p.nrc||"",areas:p.areas||[],areaText:p.areaText||"",availability:p.availability||[],baseCity:p.baseCity,lat:ll[0],lng:ll[1],locSource:p.lat!=null?"device":prev.locSource&&p.baseCity===prev.baseCity?prev.locSource:"city",agreementAt:prev.agreementAt||now(),agreementVersion:C.AGENT_AGREEMENT_VERSION}})},
+ setAgentLocation(lat,lng){const u=DB.user();DB.updateUser({agent:{...u.agent,lat,lng,locSource:"device"}})},
+ approveAgent(id,status="approved"){const u=userById(id);DB.updateUser({agent:{...u.agent,status,reviewedAt:now()}},id)},
+ // ----- inspection tasks -----
+ tasks:()=>{ensureTasks();return get("tasks",[])},
+ task:id=>DB.tasks().find(t=>t.id===id),
+ km,
+ assignTask(tid,agentId,by){const a=userById(agentId);if(a?.agent?.status!=="approved")throw Error("Agent is not approved");
+  const t=updTask(tid,{status:"offered",agentId,assignedBy:by,offeredAt:now()});const l=listing(t.listingId);log(t.listingId,`Inspection task offered to field agent ${a.name}.`,by);
+  notify(agentId,"agent_task_assigned",{agent_name:a.name,listing_title:l.title,address:`${l.address}, ${l.city}`,distance:km(a.agent,l).toFixed(1)+" km",commission:"K"+t.commission},"#/agent");return t},
+ acceptTask(tid,visitDate){const u=DB.user(),t=DB.task(tid);if(u?.agent?.status!=="approved")throw Error("Your agent profile is waiting for REZ approval");
+  if(!(t.status==="open"||(t.status==="offered"&&t.agentId===u.id)))throw Error("This task is no longer available");if(!visitDate)throw Error("Pick a visit date");
+  updTask(tid,{status:"accepted",agentId:u.id,acceptedAt:now(),visitDate});const l=listing(t.listingId);
+  if(l.vstatus!=="verified")upd(t.listingId,{vstatus:"inspection_scheduled",inspection:{...(l.inspection||{}),scheduledFor:visitDate,inspector:u.name+" (REZ field agent)",agentId:u.id}});
+  log(t.listingId,`Field agent ${u.name} accepted the inspection for ${visitDate}.`,u.name)},
+ declineTask(tid){const t=DB.task(tid);updTask(tid,{status:"open",agentId:null,offeredAt:null});log(t.listingId,"Field agent declined the offered task; it is open again.")},
+ submitReport(tid,r){const u=DB.user(),t=DB.task(tid);if(t.agentId!==u.id||t.status!=="accepted")throw Error("You can only report on a task you accepted");
+  if(!r.notes)throw Error("Add your notes");updTask(tid,{status:"submitted",report:{...r,submittedAt:now()}});log(t.listingId,`Field agent ${u.name} submitted an inspection report (recommends ${r.recommendation}).`,u.name)},
+ reviewReport(tid,decision,{by,note}={}){const t=DB.task(tid);if(t.status!=="submitted")throw Error("No report to review");const a=userById(t.agentId);
+  if(decision==="return"){updTask(tid,{status:"accepted",staffNote:note||"Please redo",returnedAt:now()});log(t.listingId,`Report sent back to ${a.name}: ${note||""}`,by);return}
+  const r=t.report;DB.completeInspection(t.listingId,{result:r.recommendation==="pass"?"verified":"rejected",inspector:a.name+" (REZ field agent)",date:r.visitedAt||t.visitDate,notes:r.notes,photos:r.photos||[],checks:r.checks},true);
+  updTask(tid,{status:"approved",reviewedBy:by,reviewedAt:now(),staffNote:note||""});
+  set("commissions",[...get("commissions",[]),{id:uid(),agentId:t.agentId,taskId:tid,listingId:t.listingId,amount:t.commission,status:"pending",created:now()}]);
+  log(t.listingId,`Report approved by ${by}. Commission K${t.commission} (PROPOSED) owed to ${a.name}; payout pending.`,by)},
+ commissions:aid=>get("commissions",[]).filter(c=>!aid||c.agentId===aid),
+ // MOCK: records that a payout happened outside the site. No money moves; real payouts stay disabled until Boaz and the lawyer sign off.
+ markCommissionPaid(id,{ref,by}){if(!ref)throw Error("Payout reference required");set("commissions",get("commissions",[]).map(c=>c.id===id?{...c,status:"paid",payoutRef:ref,paidAt:now(),paidBy:by,mock:true}:c))},
  advanceClock(days){set("clock",get("clock",0)+days*DAY)}, resetClock(){set("clock",0)}, clockOffset:()=>get("clock",0)
 };
 return DB})();

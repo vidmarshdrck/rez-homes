@@ -114,3 +114,30 @@ form.inl{grid-template-columns:1fr 1fr auto;align-items:center;margin-top:6px}@m
 .care{display:grid;gap:12px}.care>div{background:var(--bg);border-radius:18px;padding:14px}.care i{font-style:normal;font-size:24px;display:block}.care b{display:block;margin:4px 0}.care p{font-size:14px;color:var(--mut);margin:0;line-height:1.45}
 @media(min-width:760px){.care{grid-template-columns:repeat(3,1fr)}}
 #recs{margin-bottom:32px}.detail #recs{margin-top:20px}
+/* v4: boost weeks, applicant card, notifications, field agents */
+.boostcalc{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;align-items:start;margin-top:14px}.boostcalc .sechead{grid-column:1/-1}
+.bw{display:grid;gap:12px}.bwq{display:flex;flex-wrap:wrap;gap:8px}.bwq .chip{font-size:13px;padding:8px 13px}
+.chip.rec{border-color:var(--gold);background:var(--gold2);color:#7a5600}.chip.rec.on{background:var(--gold);border-color:var(--gold);color:var(--ink)}
+.bwrow{display:flex;align-items:center;gap:12px}.step{width:46px;height:46px;border-radius:50%;border:1.5px solid #e3e8e5;background:#fff;font:800 22px Inter;cursor:pointer;flex:none}.step:active{transform:scale(.94)}
+.bwv{flex:1;text-align:center;font-weight:700}.bwv .bwn{font-size:34px;letter-spacing:-1px}.bwv small{display:block;color:var(--mut);font-weight:600;font-size:12px}
+.bwr{width:100%;accent-color:var(--g)}.bwt{display:flex;justify-content:space-between;align-items:center;background:var(--ink);color:#fff;border-radius:18px;padding:14px 18px}.bwt span{color:#b9c6bf;font-weight:600}.bwt b{font-size:28px;letter-spacing:-1px;color:var(--gold)}
+.bundle{background:var(--g2);border-radius:18px;padding:16px}.bundle p{margin:8px 0;font-weight:600}.bundle p b{color:var(--g);font-size:18px}
+.agentcta{display:flex;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(135deg,var(--g2),var(--gold2));box-shadow:none}.agentcta h2{margin:8px 0 0}
+.appcards{display:grid;gap:12px;margin-top:10px}.appcard{border:1.5px solid #eef1ef;border-radius:20px;padding:16px;display:grid;gap:10px}
+.ach{display:flex;align-items:center;gap:12px}.ach .av{width:46px;height:46px;font-size:17px;flex:none}
+.facts{display:flex;flex-wrap:wrap;gap:6px}.facts span{background:var(--bg);border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600}
+.facts .seen{background:var(--g2);color:var(--g)}.facts .view{background:var(--gold2);color:#7a5600}
+.crit small{color:var(--mut);font-weight:700}.bar{height:8px;background:#eef1ef;border-radius:99px;overflow:hidden;margin-top:4px}.bar i{display:block;height:100%;background:var(--g);border-radius:99px}
+.amsg{background:var(--bg);border-radius:14px;padding:10px 12px;font-size:14px;margin:0;font-style:italic}
+.st.bad{background:#ffe9e0;color:#a33}
+.wrapseg{flex-wrap:wrap;border-radius:18px}.wrapseg button{flex:1 1 auto;min-width:30%}
+.mini-l{display:grid;gap:4px;font-size:12px;font-weight:700;color:var(--mut)}
+.nlist{display:grid;gap:10px}.notif{padding:16px 18px;border-left:5px solid transparent;cursor:default}.notif.unread{border-left-color:var(--gold)}.notif p{margin:6px 0 10px;line-height:1.45}
+.bell{position:relative;font-size:20px;margin-right:10px;display:inline-block}.bell i{position:absolute;top:-6px;right:-8px;background:#e5484d;color:#fff;font:800 10px Inter;font-style:normal;border-radius:99px;padding:2px 5px;min-width:16px;text-align:center}
+.hr{display:flex;align-items:center}
+.tabs.mini button{background:var(--bg);padding:8px 12px}.tabs.mini button.on{background:var(--ink)}
+.msgprev{box-shadow:none;background:var(--bg);margin:0;max-height:280px;overflow:auto}.msgbody{white-space:pre-wrap;font:500 14px/1.5 Inter;margin:6px 0 0}
+.dist{font-weight:800;color:var(--g);white-space:nowrap}.task .badge{font-size:9px;padding:3px 6px}
+.ck.agree{align-items:flex-start;font-size:14px;line-height:1.4}.ck.agree input{margin-top:2px}
+.f select{appearance:auto}form[data-assign]{display:flex;flex-wrap:wrap;gap:8px;align-items:center}form[data-assign] select{width:auto;padding:10px 14px}
+@media(max-width:760px){.boostcalc{grid-template-columns:1fr}.agentcta{flex-direction:column;align-items:flex-start}}
