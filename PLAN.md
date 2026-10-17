@@ -28,7 +28,7 @@ Scope: property **listings and advertising only**. There is no investment produc
 Search by city, type and price, open a listing, then tap "Enquire on WhatsApp" (prefilled message).
 
 ## Proposed pricing (proposal only)
-Starter K150/month (1 listing), Landlord K350 (5 listings plus Verified badge), Pro K750 (unlimited plus featured placement). First month free for early landlords.
+PROPOSED (v3): Starter K200/month (1 listing), Landlord K350 (5 listings), Pro K1,000 (unlimited plus featured placement). Boost K100/week or K300/month. One-time verification K250 per property. No fees are charged until the lawyer answers the Estate Agents Act question (`PAYMENTS_ENABLED=false`).
 
 ## Open items / risks
 - Get counsel to confirm whether Estate Agents Act registration applies (see sec_research_brief.md Q7).

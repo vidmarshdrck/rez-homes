@@ -9,3 +9,4 @@ All photos are from Unsplash, used under the Unsplash License (https://unsplash.
 - p6.jpg: https://images.unsplash.com/photo-1568605114967-8130f3a36994
 - p7.jpg: https://images.unsplash.com/photo-1570129477492-45c003edd2be
 - p8.jpg: https://images.unsplash.com/photo-1600596542815-ffad4c1539a9
+- p9.jpg: https://images.unsplash.com/photo-1441986300917-64674bd600d8 (shop/store sample)
