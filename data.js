@@ -6,15 +6,7 @@ const C=window.REZ_CONFIG, DAY=864e5;
 const K=k=>"rez_"+k, get=(k,d)=>{try{return JSON.parse(localStorage.getItem(K(k)))??d}catch(e){return d}}, set=(k,v)=>localStorage.setItem(K(k),JSON.stringify(v));
 const uid=()=>Math.random().toString(36).slice(2,10);
 const now=()=>Date.now()+get("clock",0); // demo clock offset (admin can advance it to test expiry)
-const SAMPLE=[
-{id:"s1",title:"Self-contained student rooms near CBU",city:"Kitwe",type:"room",rent:1200,deposit:1200,upfront:3,yard:"Shared yard, 600 m²",address:"Riverside, Kitwe",lat:-12.808,lng:28.237,photos:["img/p5.jpg"],criteria:["Student ID","Guardian contact","1 reference"],amenities:["Wi-Fi","Water incl.","Security guard"],vstatus:"verified",featured:true},
-{id:"s2",title:"Girls' boarding house, Northrise",city:"Ndola",type:"boarding",rent:950,deposit:500,upfront:2,yard:"Walled plot, 30 × 40 m",address:"Northrise, Ndola",lat:-12.948,lng:28.651,photos:["img/p2.jpg"],criteria:["Student ID","Guardian contact"],amenities:["Water & power incl.","Shared kitchen"],vstatus:"verified"},
-{id:"s3",title:"3-bed family house, Kabulonga",city:"Lusaka",type:"house",rent:9500,deposit:9500,upfront:3,yard:"Garden, 1,200 m²",address:"Kabulonga, Lusaka",lat:-15.415,lng:28.335,photos:["img/p7.jpg"],criteria:["Payslip or bank statement","NRC","2 references"],amenities:["Borehole","Parking ×2","Walled & gated"],vstatus:"verified"},
-{id:"s4",title:"2-bed apartment near UNZA",city:"Lusaka",type:"apartment",rent:3800,deposit:3800,upfront:2,yard:"Shared compound",address:"Great East Rd, Lusaka",lat:-15.392,lng:28.329,photos:["img/p4.jpg"],criteria:["Payslip","NRC"],amenities:["Parking","Solar backup"],vstatus:"verified"},
-{id:"s5",title:"Boarding rooms near Mulungushi Univ.",city:"Kabwe",type:"boarding",rent:800,deposit:400,upfront:3,yard:"Plot, 20 × 30 m",address:"Kabwe",lat:-14.44,lng:28.45,photos:["img/p1.jpg"],criteria:["Student ID"],amenities:["Wi-Fi"],vstatus:"verified"},
-{id:"s6",title:"2-bed house, Dambwa",city:"Livingstone",type:"house",rent:4500,deposit:4500,upfront:1,yard:"Garden, 800 m²",address:"Dambwa, Livingstone",lat:-17.84,lng:25.84,photos:["img/p6.jpg"],criteria:["Payslip","NRC","1 reference"],amenities:["Garden","Water tank"],vstatus:"verified"},
-{id:"s7",title:"Shop space on Cha Cha Cha Road",city:"Lusaka",type:"shop",rent:7000,deposit:7000,upfront:3,yard:"Shop floor 45 m², shared parking",address:"Cha Cha Cha Rd, Lusaka CBD",lat:-15.4214,lng:28.2836,photos:["img/p9.jpg"],criteria:["PACRA business registration","NRC","Trading licence (council)"],amenities:["Street frontage","Roller shutter","Prepaid ZESCO meter","Toilet"],vstatus:"verified"}
-].map(x=>({...x,sample:true,owner:"sample",created:Date.now()-20*DAY}));
+const SAMPLE=[]; // no seed listings — real inventory comes from landlords after approval
 // migrate v2 records (status "pending", verified flag) once
 (()=>{const a=get("listings",[]);if(a.some(l=>!l.vstatus)){set("listings",a.map(l=>l.vstatus?l:{...l,vstatus:l.verified?"verified":"awaiting_payment",payConfirmed:false}))}})();
 const users=()=>get("users",[]), userById=id=>users().find(u=>u.id===id);
@@ -56,7 +48,7 @@ function tplData(a){const l=listing(a.listingId)||{},ll=userById(l.owner)||{},t=
  return{tenant_name:(a.name||t.name||"").split(" ")[0],listing_title:l.title||a.listingTitle,city:l.city||"",address:l.address||"",landlord_name:ll.name||"The landlord",landlord_phone:ll.phone||"(landlord phone)",
   viewing_date:fmtDT(a.viewingAt),landlord_note_line:a.landlordNote?` Note from the landlord: "${a.landlordNote}"`:"",rent:fmtK(l.rent),deposit:fmtK(l.deposit),upfront:l.upfront,move_in_total:fmtK((l.rent||0)*(l.upfront||0)+(+l.deposit||0)),
   directions_url:`https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lng}`,listing_url:`${base}#/l/${l.id}`,site_url:base,landlord_wa_url:window.REZ_TPL?REZ_TPL.waLink(ll.phone,"Hi, about "+(l.title||"")):""}}
-function notify(userId,key,data,link,extra){const r=window.REZ_TPL?.render(key,"in_app",data)||{title:key,body:""};const n={id:uid(),userId,key,title:r.title,body:r.body,data,link:link||"",created:now(),read:false,channels:["in_app"],pendingChannels:["email","sms","whatsapp"],delivery:C.DELIVERY_ENABLED?"queued":"preview_only",...(extra||{})};set("notifs",[...get("notifs",[]),n]);return n}
+function notify(userId,key,data,link,extra){const r=window.REZ_TPL?.render(key,"in_app",data)||{title:key,body:""};const n={id:uid(),userId,key,title:r.title,body:r.body,data,link:link||"",created:now(),read:false,channels:["in_app"],pendingChannels:["email","sms","whatsapp"],delivery:C.DELIVERY_ENABLED?"queued":"held",...(extra||{})};set("notifs",[...get("notifs",[]),n]);return n}
 function notifyApp(a,key){return notify(a.tenant,key,tplData(a),"#/l/"+a.listingId,{appId:a.id,listingId:a.listingId,tenantPhone:a.phone,tenantEmail:a.tenantEmail})}
 // ----- v5 helpers -----
 const isStaffU=u=>!!u&&(u.role==="admin"||u.role==="staff");
@@ -69,10 +61,30 @@ function issueCert(agentId,me){const u=userById(agentId);if(me.id===agentId)thro
 // Boost discount band from config + the demand placeholder.
 function discountBand(){const lv=C.DEMAND_LEVEL||"normal",r=(C.BOOST_DEMAND_RULES||{})[lv]||{},min=C.BOOST_DISCOUNT_MIN_PCT,max=Math.min(C.BOOST_DISCOUNT_MAX_PCT,r.maxPct??C.BOOST_DISCOUNT_MAX_PCT);
  return{level:lv,min,max,off:!C.BOOST_DISCOUNT_ENABLED||!!r.off||!(max>=min)}}
+
+// Role applications (landlord / agent). Status: submitted → under_review → approved | declined.
+// Document file contents are never written to localStorage or the repo — only local file names for the UI.
+function roleApps(){return get("roleApps",[])}
+function saveRoleApp(app){const a=roleApps();const i=a.findIndex(x=>x.id===app.id);if(i<0)a.push(app);else a[i]=app;set("roleApps",a);return app}
 const DB={
  now,DAY,plan,subActive,feeRequired,
  listings,listing,
  publicListings:()=>listings().filter(l=>l.status==="active"),
+ roleApps, saveRoleApp,
+ /** Returns the latest role application of a given kind for the signed-in user. */
+ latestRoleApp(kind){const u=DB.user();if(!u)return null;return roleApps().filter(a=>a.userId===u.id&&a.kind===kind).sort((a,b)=>b.created-a.created)[0]||null},
+ /** Saves a landlord or agent application (metadata only; no document bytes). */
+ submitRoleApplication(kind,fields){const u=DB.user();if(!u)throw Error("Sign in first");
+  const app={id:"ra"+uid(),userId:u.id,kind,status:"submitted",created:now(),updated:now(),...fields};
+  saveRoleApp(app);return app},
+ /** Moves an application into under_review or sets approved/declined. */
+ setRoleAppStatus(id,status,note){const a=roleApps().find(x=>x.id===id);if(!a)throw Error("Application not found");
+  a.status=status;a.updated=now();a.reviewNote=note||"";saveRoleApp(a);
+  if(status==="approved"){const patch={};if(a.kind==="landlord"){patch.roles=[...new Set([...(userById(a.userId)?.roles||["tenant"]),"landlord"])];patch.role="landlord"}
+   if(a.kind==="agent"){patch.roles=[...new Set([...(userById(a.userId)?.roles||["tenant"]),"agent"])];patch.role="agent";patch.agentId=a.agentId||("REZ-AG-"+uid().toUpperCase())}
+   set("users",users().map(x=>x.id===a.userId?{...x,...patch}:x))}
+  return a},
+
  // ----- landlord: create / submit -----
  addListing(l,{draft}={}){const a=raw();const n={...l,id:"u"+uid(),created:now(),vstatus:draft?"draft":"awaiting_payment",payConfirmed:false,notes:[]};a.push(n);set("listings",a);if(!draft)DB.submitForVerification(n.id);return n},
  updateListing:upd,
@@ -124,11 +136,11 @@ const DB={
  // ----- accounts -----
  users, userById,
  user:()=>get("session",null)&&userById(get("session")),
- signUp({name,email,password,role,google,phone}){const us=users();if(us.find(u=>u.email===email))throw Error("An account with this email already exists");const u={id:uid(),name,email,password,role,phone:phone||"",google:!!google,plan:"starter",subPaidUntil:0,saved:[],trips:[],meets:{},created:now()};us.push(u);set("users",us);set("session",u.id);return u},
+ signUp({name,email,password,role,google,phone}){const us=users();if(us.find(u=>u.email===email))throw Error("An account with this email already exists");const roles=["tenant"];const u={id:uid(),name,email,password,role:"tenant",roles,phone:phone||"",google:!!google,plan:"starter",subPaidUntil:0,saved:[],trips:[],meets:{},created:now()};us.push(u);set("users",us);set("session",u.id);return u},
  signIn(email,password){const u=users().find(u=>u.email===email&&u.password===password);if(!u)throw Error("Wrong email or password");set("session",u.id);return u},
  signOut(){localStorage.removeItem(K("session"))},
  updateUser(p,id){const s=id||get("session");set("users",users().map(u=>u.id===s?{...u,...p}:u))},
- staffDemo(){const email="staff.demo@rez.example";let u=users().find(x=>x.email===email);if(!u){const us=users();u={id:"staff-demo",name:"REZ Staff (demo)",email,password:"",role:"admin",saved:[],trips:[],meets:{}};us.push(u);set("users",us)}set("session",u.id);return u},
+ staffDemo(){const email="staff.demo@rez.example";let u=users().find(x=>x.email===email);if(!u){const us=users();u={id:"staff-demo",name:"REZ Staff",email,password:"",role:"admin",saved:[],trips:[],meets:{}};us.push(u);set("users",us)}set("session",u.id);return u},
  applications:()=>get("apps",[]),
  apply(a){const x=get("apps",[]);const n={...a,id:uid(),status:"Submitted",created:now()};x.push(n);set("apps",x);return n},
  setAppStatus(id,status){set("apps",get("apps",[]).map(a=>a.id===id?{...a,status}:a))},
@@ -203,7 +215,7 @@ const DB={
   const r=t.report;DB.completeInspection(t.listingId,{result:r.recommendation==="pass"?"verified":"rejected",inspector:a.name+" (REZ field agent)",date:r.visitedAt||t.visitDate,notes:r.notes,photos:r.photos||[],checks:r.checks},true);
   updTask(tid,{status:"approved",reviewedBy:by,reviewedAt:now(),staffNote:note||""});
   set("commissions",[...get("commissions",[]),{id:uid(),agentId:t.agentId,taskId:tid,listingId:t.listingId,amount:t.commission,status:"pending",created:now()}]);
-  log(t.listingId,`Report approved by ${by}. Commission K${t.commission} (PROPOSED) owed to ${a.name}; payout pending.`,by)},
+  log(t.listingId,`Report approved by ${by}. Commission owed to ${a.name}; payout pending.`,by)},
  commissions:aid=>get("commissions",[]).filter(c=>!aid||c.agentId===aid),
  // MOCK: records that a payout happened outside the site. No money moves; real payouts stay disabled until Boaz and the lawyer sign off.
  markCommissionPaid(id,{ref,by}){if(!ref)throw Error("Payout reference required");set("commissions",get("commissions",[]).map(c=>c.id===id?{...c,status:"paid",payoutRef:ref,paidAt:now(),paidBy:by,mock:true}:c))},

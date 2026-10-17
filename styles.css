@@ -266,3 +266,46 @@ s.was{color:#9aa69f;font-weight:600;font-size:.62em;text-decoration-thickness:2p
   .mhero{display:none!important}
   .home-stack>.carousel{display:block}
 }
+
+
+/* v6: photo carousels, featured strip, glassy bottom nav */
+.pcar{position:relative;overflow:hidden;width:100%;height:100%;background:var(--g2);touch-action:pan-y}
+.pcar .ptrack{position:relative;width:100%;height:100%}
+.pcar .pslide{position:absolute;inset:0;opacity:0;transition:opacity .35s;display:grid;place-items:center}
+.pcar .pslide.on{opacity:1;z-index:1}
+.pcar .pslide img{width:100%;height:100%;object-fit:cover;display:block}
+.pcar.pcard{min-height:200px}
+.pcar.phero{min-height:280px;border-radius:24px}
+.pdots{position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:center;gap:6px;z-index:2}
+.pdots i{width:7px;height:7px;border-radius:9px;background:rgba(255,255,255,.55);display:block;transition:.2s}
+.pdots i.on{width:18px;background:#fff}
+.ph{position:relative;overflow:hidden}
+.ph .tags,.detail-hero .tags{position:absolute;top:12px;left:12px;z-index:3;display:flex;flex-wrap:wrap;gap:4px}
+.detail-hero{position:relative;margin:12px 0 8px}
+.feat-row{margin-bottom:28px}
+.feat-scroller{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.feat-scroller::-webkit-scrollbar{display:none}
+.feat-card{flex:0 0 72%;max-width:280px;scroll-snap-align:start;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 2px 6px rgba(14,26,20,.04),0 12px 32px rgba(14,26,20,.05)}
+.feat-card .pcar{height:150px}
+.feat-meta{padding:12px 14px}.feat-meta b{display:block;margin:4px 0;font-size:15px}.feat-meta .pr{font-size:20px;font-weight:800}
+.empty{color:var(--mut);font-size:15px;line-height:1.5;padding:18px;background:#fff;border-radius:18px;text-align:center}
+.empty a{color:var(--g);font-weight:700}
+.status-banner{background:var(--gold2);color:#7a5600;font-weight:600;font-size:13px;padding:10px 14px;border-radius:12px}
+.verify-choice{display:grid;gap:8px;margin:8px 0;padding:12px;background:var(--bg);border-radius:14px}
+.bwrec{font-weight:600;color:var(--ink)!important}
+
+/* Glassy bottom nav with fallback */
+.bnav{
+  background:rgba(255,255,255,.72);
+  -webkit-backdrop-filter:blur(18px) saturate(1.2);
+  backdrop-filter:blur(18px) saturate(1.2);
+  border:1px solid rgba(14,26,20,.08);
+  box-shadow:0 10px 30px rgba(14,26,20,.12);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){
+  .bnav{background:rgba(255,255,255,.96)}
+}
+@media(min-width:760px){
+  .feat-card{flex-basis:240px}
+  .pcar.phero{min-height:360px}
+}

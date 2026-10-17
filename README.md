@@ -54,3 +54,13 @@ open index.html   # macOS; on Linux use xdg-open
 - Touch targets ≥44px; landlord listing actions stack full-width.
 - Muted/green tokens darkened for WCAG AA contrast.
 - Footer stays "Powered by VIDMΛR" (never "Vidmar Holdings").
+
+## v6 — product UI (no seed listings)
+- Seed SAMPLE listings removed. Empty states name the city when filtered (e.g. "No listings in Ndola yet").
+- Badge text is **Verified** only. Footer stays Powered by VIDMΛR.
+- Listing cards and detail use a swipeable photo carousel; home has a featured horizontal strip when featured listings exist.
+- Accounts are tenants by default. Apply as landlord or agent from Account (ID, selfie, TPIN; landlords add ownership proof or email-documents option). Status: submitted → under review → approved/declined.
+- List flow ends with **Pay for verification now** or **Verify later**. Payment methods: MTN, Airtel, Binance (USDT/ETH/BTC), PayPal. Copy: "We'll send payment details after you submit."
+- Boost calculator: 1–5 weeks, 5 recommended, live totals and an off-recommendation note.
+- Mobile bottom nav: glassy (backdrop-filter) with solid fallback.
+- Agent info page (`#/agent-info`): ID, gear, handbook; commission varies — no amounts shown.
