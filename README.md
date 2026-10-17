@@ -27,3 +27,9 @@ Property listings and advertising for Zambia. No investment product.
 - Browsing and Google Maps directions stay free with no account.
 - `config.js`: `VERIFICATION_FEE: 500`, `VERIFICATION_PERIOD_DAYS: 365`, `BOOST {week:100, maxWeeks:12, recommendedWeeks:5}`, `AGENT_COMMISSION: 150`, `AGENT_AGREEMENT_VERSION`, `DELIVERY_ENABLED: false`, `PAYMENTS_ENABLED: false`.
 - Tests: `../test/v4.js` (130 headless-Chrome checks covering the v3 and v4 flows). Backend: `../supabase/schema.sql` section H.
+
+## v5 (17 October 2026)
+- Badge text is just **"Verified"**.
+- **Boost discount offer** (PROPOSED): "Apply for a discount" in the boost sheet. A random whole-kwacha % inside `BOOST_DISCOUNT_MIN_PCT`–`BOOST_DISCOUNT_MAX_PCT` (5–15), capped by `DEMAND_LEVEL` (placeholder `normal` → max 10%, `high` → off), never below `BOOST_PRICE_FLOOR_PER_WEEK` (K85). Shows the "was" price and is locked per listing for `BOOST_DISCOUNT_OFFER_HOURS` (24) in localStorage.
+- **REZ Inspector portal** (`#/agent`): application with experience, optional licence and document uploads (metadata only), staff approve/reject, printable **REZ Certified Inspector** certificate (`#/cert/:id`, 1 year, "Not a professional licence"). Only approved inspectors with a valid certificate can take tasks. Reports carry photos, evidence documents and the inspector ID.
+- Tests: `../test/v5.js` (mobile viewport), plus `v3.js` and `v4.js`. Backend: `../supabase/schema.sql` section I.

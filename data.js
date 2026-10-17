@@ -1,4 +1,4 @@
-// REZ data layer (v4). Everything is stored in this browser's localStorage today.
+// REZ data layer (v5). Everything is stored in this browser's localStorage today.
 // To move to Supabase, re-implement these functions with the Supabase client
 // (see ../supabase/README.md for the table-by-table mapping). The UI only calls DB.*.
 const DB=(()=>{
@@ -58,6 +58,17 @@ function tplData(a){const l=listing(a.listingId)||{},ll=userById(l.owner)||{},t=
   directions_url:`https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lng}`,listing_url:`${base}#/l/${l.id}`,site_url:base,landlord_wa_url:window.REZ_TPL?REZ_TPL.waLink(ll.phone,"Hi, about "+(l.title||"")):""}}
 function notify(userId,key,data,link,extra){const r=window.REZ_TPL?.render(key,"in_app",data)||{title:key,body:""};const n={id:uid(),userId,key,title:r.title,body:r.body,data,link:link||"",created:now(),read:false,channels:["in_app"],pendingChannels:["email","sms","whatsapp"],delivery:C.DELIVERY_ENABLED?"queued":"preview_only",...(extra||{})};set("notifs",[...get("notifs",[]),n]);return n}
 function notifyApp(a,key){return notify(a.tenant,key,tplData(a),"#/l/"+a.listingId,{appId:a.id,listingId:a.listingId,tenantPhone:a.phone,tenantEmail:a.tenantEmail})}
+// ----- v5 helpers -----
+const isStaffU=u=>!!u&&(u.role==="admin"||u.role==="staff");
+function staffOnly(subjectId){const me=DB.user();if(!isStaffU(me))throw Error("REZ staff only");if(subjectId&&me.id===subjectId)throw Error("You can't review or certify yourself");return me}
+function revokeCerts(agentId,reason){set("certs",get("certs",[]).map(c=>c.agentId===agentId&&!c.revoked?{...c,revoked:now(),revokeReason:reason}:c))}
+function issueCert(agentId,me){const u=userById(agentId);if(me.id===agentId)throw Error("You can't issue your own certificate");revokeCerts(agentId,"Superseded by a new certificate");
+ const cs=get("certs",[]),yy=new Date(now()).getFullYear().toString().slice(2),seq=String(cs.length+1).padStart(4,"0");
+ const c={id:"c"+uid(),no:`REZ-INS-${yy}-${seq}`,agentId,holder:u.name,scope:"REZ listing inspections",wording:C.INSPECTOR_CERT_WORDING,issued:now(),expires:now()+C.INSPECTOR_CERT_DAYS*DAY,issuedBy:me.name,issuedById:me.id,revoked:null};
+ set("certs",[...cs,c]);notify(agentId,"inspector_approved",{agent_name:(u.name||"").split(" ")[0],cert_no:c.no,expires:new Date(c.expires).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}),site_url:location.origin+location.pathname},"#/agent");return c}
+// Boost discount band from config + the demand placeholder.
+function discountBand(){const lv=C.DEMAND_LEVEL||"normal",r=(C.BOOST_DEMAND_RULES||{})[lv]||{},min=C.BOOST_DISCOUNT_MIN_PCT,max=Math.min(C.BOOST_DISCOUNT_MAX_PCT,r.maxPct??C.BOOST_DISCOUNT_MAX_PCT);
+ return{level:lv,min,max,off:!C.BOOST_DISCOUNT_ENABLED||!!r.off||!(max>=min)}}
 const DB={
  now,DAY,plan,subActive,feeRequired,
  listings,listing,
@@ -79,7 +90,7 @@ const DB={
   upd(id,{hidden:false,leavingDate:leavingDate||null,reactivatedAt:now()});log(id,leavingDate?`Tenant leaving ${leavingDate}: relisted early.`:"Reactivated by landlord.");
   return subActive(u)?{ok:true}:{needPayment:true}},
  // ----- payments (placeholder: nothing is charged) -----
- createPayment({purpose,listingId,landlord,amount,method,planId,weeks}){const p={id:uid(),ref:ref(),purpose,listingId:listingId||null,landlord,amount,method,planId:planId||null,weeks:weeks||null,status:"pending",created:now()};set("payments",[...get("payments",[]),p]);return p},
+ createPayment({purpose,listingId,landlord,amount,method,planId,weeks,discount}){const p={id:uid(),ref:ref(),purpose,listingId:listingId||null,landlord,amount,method,planId:planId||null,weeks:weeks||null,discount:discount||null,status:"pending",created:now()};set("payments",[...get("payments",[]),p]);return p},
  payments:()=>get("payments",[]),
  // Staff records a payment that arrived outside the site (e.g. mobile money). Boaz verifies transaction_id + amount + timestamp.
  recordPayment(pid,{transaction_id,amount,paid_at,recorded_by}){
@@ -92,6 +103,18 @@ const DB={
   if(p.purpose==="subscription"){const u=userById(p.landlord);const from=Math.max(now(),u.subPaidUntil||0);DB.updateUser({subPaidUntil:from+C.LISTING_PERIOD_DAYS*DAY,plan:p.planId||u.plan},u.id)}
   if(p.purpose==="boost"&&p.listingId){const l=listing(p.listingId);const wk=Math.min(C.BOOST.maxWeeks,Math.max(1,+p.weeks||1));upd(p.listingId,{boostUntil:Math.max(now(),l.boostUntil||0)+wk*7*DAY,boostWeeks:wk});log(p.listingId,`Boost ${wk} week(s) recorded (txn ${transaction_id}).`,recorded_by)}
   return p},
+ // ----- v5: boost discount offer (PROPOSED; the server draws it at launch) -----
+ discountBand,
+ drawDiscountPct(b){b=b||discountBand();return b.off?0:b.min+Math.floor(Math.random()*(b.max-b.min+1))},
+ // Whole kwacha, never below weeks x floor, never above the full price.
+ boostQuote(weeks,pct=0,o={}){const wk=o.week??C.BOOST.week,fl=o.floorPerWeek??C.BOOST_PRICE_FLOOR_PER_WEEK;weeks=Math.max(C.BOOST.minWeeks,Math.min(C.BOOST.maxWeeks,Math.round(+weeks||1)));
+  const was=weeks*wk,raw=Math.round(was*(100-pct)/100),min=Math.round(weeks*fl),total=Math.min(was,Math.max(min,raw));return{weeks,was,total,pct,floorApplied:raw<min,saved:was-total}},
+ boostOffer:listingId=>get("boostOffers",[]).filter(x=>x.listingId===listingId&&x.expires>now()).sort((a,b)=>b.created-a.created)[0]||null,
+ // One offer per listing until it expires: ticking again, re-opening or reloading returns the same offer.
+ getBoostOffer(listingId){const u=DB.user(),l=listing(listingId);if(!u||!l||l.owner!==u.id)throw Error("You can only ask for a discount on your own listing");
+  const ex=DB.boostOffer(listingId);if(ex)return ex;const b=discountBand();if(b.off)return null;
+  const o={id:"bo"+uid(),listingId,landlord:u.id,pct:DB.drawDiscountPct(b),minPct:b.min,maxPct:b.max,week:C.BOOST.week,floorPerWeek:C.BOOST_PRICE_FLOOR_PER_WEEK,demand:b.level,created:now(),expires:now()+C.BOOST_DISCOUNT_OFFER_HOURS*36e5};
+  set("boostOffers",[...get("boostOffers",[]).filter(x=>x.expires>now()-30*DAY),o]);return o},
  // ----- metrics -----
  lastViewed:()=>get("lastViewed",null),
  trackView(id){set("lastViewed",id);const k="rez_seen_"+id;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,1);const v=get("views",{});v[id]=(v[id]||0)+1;set("views",v);set("viewlog",[...get("viewlog",[]).slice(-2000),{id,at:now()}])},
@@ -124,27 +147,58 @@ const DB={
  markAllRead(){const s=get("session");set("notifs",get("notifs",[]).map(n=>n.userId===s?{...n,read:true}:n))},
  // ----- field agents (existing estate agents working for REZ as inspectors) -----
  agents:()=>users().filter(u=>u.role==="agent"&&u.agent),
+ // v5: the agent profile is also the REZ inspector application (experience, optional licence, qualification documents).
  saveAgentProfile(p){const u=DB.user();if(!p.agreement&&!u.agent?.agreementAt)throw Error("Tick the agent agreement to continue");
-  const prev=u.agent||{status:"pending"};const ll=p.lat!=null?[+p.lat,+p.lng]:prev.lat!=null&&p.baseCity===prev.baseCity?[prev.lat,prev.lng]:CITYLL[p.baseCity]||CITYLL.Lusaka;
-  DB.updateUser({role:"agent",name:p.name||u.name,phone:p.phone||u.phone,agent:{...prev,nrc:p.nrc||"",areas:p.areas||[],areaText:p.areaText||"",availability:p.availability||[],baseCity:p.baseCity,lat:ll[0],lng:ll[1],locSource:p.lat!=null?"device":prev.locSource&&p.baseCity===prev.baseCity?prev.locSource:"city",agreementAt:prev.agreementAt||now(),agreementVersion:C.AGENT_AGREEMENT_VERSION}})},
+  const prev=u.agent||{status:"pending"};const docs=p.docs||prev.docs||[];const yrs=p.experienceYears;
+  if(yrs===""||yrs==null||isNaN(+yrs)||+yrs<0||+yrs>70)throw Error("Tell us how many years of property experience you have (0 is fine)");
+  if(!docs.length)throw Error("Upload at least one qualification document (certificate, CV, licence or reference letter)");
+  const ll=p.lat!=null?[+p.lat,+p.lng]:prev.lat!=null&&p.baseCity===prev.baseCity?[prev.lat,prev.lng]:CITYLL[p.baseCity]||CITYLL.Lusaka;
+  const resubmit=prev.status==="rejected",status=resubmit?"pending":prev.status||"pending";
+  const history=[...(prev.history||[]),{at:now(),event:!u.agent?"Application submitted":resubmit?"Application resubmitted":"Profile updated"}];
+  DB.updateUser({role:"agent",name:p.name||u.name,phone:p.phone||u.phone,agent:{...prev,status,nrc:p.nrc||"",email:(p.email||u.email||"").trim(),experienceYears:+yrs,experience:(p.experience||"").trim(),licenceType:p.licenceType||"none",licenceNo:(p.licenceNo||"").trim(),docs,
+   submittedAt:!u.agent||resubmit?now():prev.submittedAt||now(),reviewNote:resubmit?"":prev.reviewNote||"",history,
+   areas:p.areas||[],areaText:p.areaText||"",availability:p.availability||[],baseCity:p.baseCity,lat:ll[0],lng:ll[1],locSource:p.lat!=null?"device":prev.locSource&&p.baseCity===prev.baseCity?prev.locSource:"city",agreementAt:prev.agreementAt||now(),agreementVersion:C.AGENT_AGREEMENT_VERSION}})},
  setAgentLocation(lat,lng){const u=DB.user();DB.updateUser({agent:{...u.agent,lat,lng,locSource:"device"}})},
- approveAgent(id,status="approved"){const u=userById(id);DB.updateUser({agent:{...u.agent,status,reviewedAt:now()}},id)},
+ // v4 entry point kept: approve = review + certificate; anything else (suspended) also revokes the live certificate.
+ approveAgent(id,status="approved"){if(status==="approved")return DB.reviewAgent(id,"approve");const me=staffOnly(id),u=userById(id);
+  DB.updateUser({agent:{...u.agent,status,reviewedAt:now(),reviewedBy:me.name}},id);revokeCerts(id,`Inspector ${status} by ${me.name}`)},
+ // ----- v5: REZ inspector review + certificates -----
+ // Staff only, never your own application. approve -> status approved + a REZ Certified Inspector certificate; reject -> reason required.
+ reviewAgent(id,decision,{note}={}){const me=staffOnly(id),u=userById(id);if(!u?.agent)throw Error("Application not found");
+  const first=(u.name||"").split(" ")[0];
+  if(decision==="reject"){if(!note||!String(note).trim())throw Error("Give the applicant a reason");
+   DB.updateUser({agent:{...u.agent,status:"rejected",reviewNote:String(note).trim(),reviewedAt:now(),reviewedBy:me.name,history:[...(u.agent.history||[]),{at:now(),event:"Rejected: "+note}]}},id);revokeCerts(id,"Application rejected");
+   notify(id,"inspector_application_rejected",{agent_name:first,reason:String(note).trim(),site_url:location.origin+location.pathname},"#/agent");return null}
+  if(decision!=="approve")throw Error("Decision must be approve or reject");
+  if(!(u.agent.docs||[]).length)throw Error("No qualification documents on this application");
+  DB.updateUser({agent:{...u.agent,status:"approved",reviewNote:note||"",reviewedAt:now(),reviewedBy:me.name,history:[...(u.agent.history||[]),{at:now(),event:"Approved by "+me.name}]}},id);
+  return issueCert(id,me)},
+ issueCertificate(id){const me=staffOnly(id);if(userById(id)?.agent?.status!=="approved")throw Error("Approve the inspector before issuing a certificate");return issueCert(id,me)},
+ certificates:()=>get("certs",[]),
+ certificate:idOrNo=>get("certs",[]).find(c=>c.id===idOrNo||c.no===String(idOrNo||"").toUpperCase()),
+ certFor:agentId=>get("certs",[]).filter(c=>c.agentId===agentId).sort((a,b)=>b.issued-a.issued)[0]||null,
+ certStatus(c){if(!c)return"none";if(c.revoked)return"revoked";if(c.expires<=now())return"expired";return userById(c.agentId)?.agent?.status==="approved"?"valid":"suspended"},
+ // Only approved inspectors with a valid certificate can take or report on tasks.
+ canInspect(u){u=u||DB.user();return!!u&&u.agent?.status==="approved"&&DB.certStatus(DB.certFor(u.id))==="valid"},
+
  // ----- inspection tasks -----
  tasks:()=>{ensureTasks();return get("tasks",[])},
  task:id=>DB.tasks().find(t=>t.id===id),
  km,
- assignTask(tid,agentId,by){const a=userById(agentId);if(a?.agent?.status!=="approved")throw Error("Agent is not approved");
+ assignTask(tid,agentId,by){const a=userById(agentId);if(!DB.canInspect(a))throw Error("Only approved REZ inspectors with a valid certificate can take tasks");
   const t=updTask(tid,{status:"offered",agentId,assignedBy:by,offeredAt:now()});const l=listing(t.listingId);log(t.listingId,`Inspection task offered to field agent ${a.name}.`,by);
   notify(agentId,"agent_task_assigned",{agent_name:a.name,listing_title:l.title,address:`${l.address}, ${l.city}`,distance:km(a.agent,l).toFixed(1)+" km",commission:"K"+t.commission},"#/agent");return t},
- acceptTask(tid,visitDate){const u=DB.user(),t=DB.task(tid);if(u?.agent?.status!=="approved")throw Error("Your agent profile is waiting for REZ approval");
+ acceptTask(tid,visitDate){const u=DB.user(),t=DB.task(tid);if(!DB.canInspect(u))throw Error(u?.agent?.status==="approved"?"Your REZ inspector certificate isn't valid. Ask REZ to renew it.":"Only approved REZ inspectors can take tasks. Your application is waiting for REZ review.");
+  if(listing(t.listingId)?.owner===u.id)throw Error("You can't inspect your own property");
   if(!(t.status==="open"||(t.status==="offered"&&t.agentId===u.id)))throw Error("This task is no longer available");if(!visitDate)throw Error("Pick a visit date");
   updTask(tid,{status:"accepted",agentId:u.id,acceptedAt:now(),visitDate});const l=listing(t.listingId);
   if(l.vstatus!=="verified")upd(t.listingId,{vstatus:"inspection_scheduled",inspection:{...(l.inspection||{}),scheduledFor:visitDate,inspector:u.name+" (REZ field agent)",agentId:u.id}});
   log(t.listingId,`Field agent ${u.name} accepted the inspection for ${visitDate}.`,u.name)},
  declineTask(tid){const t=DB.task(tid);updTask(tid,{status:"open",agentId:null,offeredAt:null});log(t.listingId,"Field agent declined the offered task; it is open again.")},
- submitReport(tid,r){const u=DB.user(),t=DB.task(tid);if(t.agentId!==u.id||t.status!=="accepted")throw Error("You can only report on a task you accepted");
+ submitReport(tid,r){const u=DB.user(),t=DB.task(tid);if(t.agentId!==u.id||t.status!=="accepted")throw Error("You can only report on a task you accepted");if(!DB.canInspect(u))throw Error("Only approved REZ inspectors with a valid certificate can submit reports");
+  r={...r,certNo:DB.certFor(u.id)?.no||null,docs:r.docs||[]};
   if(!r.notes)throw Error("Add your notes");updTask(tid,{status:"submitted",report:{...r,submittedAt:now()}});log(t.listingId,`Field agent ${u.name} submitted an inspection report (recommends ${r.recommendation}).`,u.name)},
- reviewReport(tid,decision,{by,note}={}){const t=DB.task(tid);if(t.status!=="submitted")throw Error("No report to review");const a=userById(t.agentId);
+ reviewReport(tid,decision,{by,note}={}){const t=DB.task(tid);if(t.status!=="submitted")throw Error("No report to review");const a=userById(t.agentId);staffOnly(t.agentId);
   if(decision==="return"){updTask(tid,{status:"accepted",staffNote:note||"Please redo",returnedAt:now()});log(t.listingId,`Report sent back to ${a.name}: ${note||""}`,by);return}
   const r=t.report;DB.completeInspection(t.listingId,{result:r.recommendation==="pass"?"verified":"rejected",inspector:a.name+" (REZ field agent)",date:r.visitedAt||t.visitDate,notes:r.notes,photos:r.photos||[],checks:r.checks},true);
   updTask(tid,{status:"approved",reviewedBy:by,reviewedAt:now(),staffNote:note||""});

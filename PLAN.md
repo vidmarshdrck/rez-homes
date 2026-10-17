@@ -2,7 +2,7 @@
 Scope: property **listings and advertising only**. There is no investment product and no investment language (REZ investment activity stays blocked pending SEC counsel).
 
 ## Phase 0: Static draft (this folder)
-- Plain HTML/CSS/JS, no build step, mobile-first. Brand colours: white, green #0b6b3a, gold #d4a017.
+- Plain HTML/CSS/JS, no build step, mobile-first. Brand colours: white, green #0B8A4A, gold #F2B705.
 - Sample listings are hard-coded in app.js and labelled SAMPLE. The WhatsApp number is a placeholder.
 
 ## Cheap hosting path
@@ -35,8 +35,16 @@ PROPOSED (v4): verification K500 per property per year; boost K100/week × 1–1
 ## Field agents (v4)
 Existing estate agents become REZ field agents rather than competitors. They inspect nearby properties in their free time, file a checklist report with photos, and earn a commission once staff approve it. Needs: a lawyer-reviewed agent agreement and the Estate Agents Act answer.
 
+## v5 (17 October 2026)
+- **Badge** now reads just "Verified" (no "by REZ").
+- **Boost discount offer (PROPOSED)**: an "Apply for a discount" checkbox in the boost sheet shows "Your discount offer", a whole-kwacha % off with the "was" price struck through. The % is drawn at random inside a safe band: `BOOST_DISCOUNT_MIN_PCT` 5 to `BOOST_DISCOUNT_MAX_PCT` 15, capped by `DEMAND_LEVEL` (low 15%, normal 10%, high = no discounts), and never below `BOOST_PRICE_FLOOR_PER_WEEK` K85. The offer is locked to the listing for 24h, so it can't be rerolled. `DEMAND_LEVEL` is a placeholder; later it should come from supply/demand data (active listings vs enquiries per town). At launch the draw happens on the server (`rez.boost_discount_offer`), not in the browser.
+- **REZ Inspector portal** (`#/agent`): apply (name, phone, email, town, experience, optional estate agent/valuer licence, qualification documents), staff approve or reject with a reason, approval issues a printable **REZ Certified Inspector** certificate (`#/cert/:id`, one year, revocable). Only inspectors with a valid certificate can take tasks; they fill the checklist, add photos and documents, and submit. Staff approval gives the Verified badge and the PROPOSED K150 commission. Nobody can approve, certify or inspect themselves.
+- The certificate covers REZ listing inspections only. It says "Not a professional licence" and doesn't use valuer or estate agent wording. Lawyer questions Q12 (CCPC, random discounts) and Q13 (certificate vs the Valuation Surveyors / Estate Agents Acts) are in `sec_research_brief.md`.
+
 ## Open items / risks
 - Get counsel to confirm whether Estate Agents Act registration applies (see sec_research_brief.md Q7).
 - Data Protection Act 2021: add a privacy notice before collecting real data.
 - Fraud and scam listings: verification process and a report button.
+- v5: lawyer answers on Q12 (random discount) and Q13 (inspector certificate wording) before either goes live.
+- v5: replace the `DEMAND_LEVEL` placeholder with a real supply/demand signal.
 - Need Shadrick to supply the real WhatsApp number, domain choice and logo.
