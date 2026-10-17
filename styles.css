@@ -1,4 +1,4 @@
-:root{--g:#0B8A4A;--g2:#E7F5EC;--gold:#F2B705;--gold2:#FFF6D6;--ink:#0E1A14;--mut:#6B7A72;--bg:#F6F8F7;--r:24px}
+:root{--g:#08753E;--g2:#E7F5EC;--gold:#F2B705;--gold2:#FFF6D6;--ink:#0E1A14;--mut:#55665E;--bg:#F6F8F7;--r:24px}
 *{box-sizing:border-box;margin:0}html{scroll-behavior:smooth}
 body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:90px;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1100px;margin:auto;padding:0 20px}a{color:inherit;text-decoration:none}
@@ -159,3 +159,110 @@ s.was{color:#9aa69f;font-weight:600;font-size:.62em;text-decoration-thickness:2p
 .insp .facts{margin-top:6px}
 #qkind{flex:0 0 42%}
 @media print{body{background:#fff!important}header.top,footer,.bnav,.wafloat,.noprint,#toast,#sheet{display:none!important}main.wrap{padding:0!important;max-width:none!important}}
+
+/* v5 mobile-first: listings lead, touch targets, float clearance */
+.mhero{display:none}
+.home-stack{display:flex;flex-direction:column}
+.wafloat{transition:transform .25s ease,opacity .25s ease}
+.wafloat.scroll-hide{transform:translateY(120%);opacity:0;pointer-events:none}
+.wafloat svg{width:22px;height:22px}
+
+@media(max-width:759px){
+  :root{--r:18px}
+  body{
+    padding-bottom:calc(108px + env(safe-area-inset-bottom,0px));
+    padding-left:env(safe-area-inset-left,0px);
+    padding-right:env(safe-area-inset-right,0px);
+  }
+  .wrap{padding:0 16px}
+  .nav{height:56px;gap:8px}
+  .logo{font-size:17px;gap:6px}.logo img{height:32px}
+  .top .pill-gold.sm{padding:10px 12px;font-size:12px;min-height:44px}
+  .pbtn{width:44px;height:44px;min-width:44px}
+
+  /* Compact mobile hero; hide tall carousel so listings lead */
+  .mhero{display:block;padding:12px 0 4px;order:1}
+  .mhero h1{font-size:24px;line-height:1.15;letter-spacing:-.6px;margin:0 0 4px}
+  .mhero .lead{font-size:14px;line-height:1.4;max-width:none;margin:0;color:var(--mut);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .home-stack>.carousel{display:none}
+  .home-search{order:2;margin-bottom:12px;padding:12px 14px;border-radius:18px}
+  .home-search .lbl{margin:8px 0 6px}
+  .home-search .lbl:first-child{margin-top:0}
+  .home-search #typeT{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:8px;padding-bottom:2px;scrollbar-width:none}
+  .home-search #typeT::-webkit-scrollbar{display:none}
+  .home-stack>#listings{order:3;margin-bottom:28px}
+  .home-stack>#recwrap{order:4}
+  .home-stack>#pricing{order:5}
+  .home-stack>#agents{order:6}
+  .home-stack>#contact{order:7}
+
+  h1{font-size:28px;letter-spacing:-.8px}
+  h2{font-size:22px;letter-spacing:-.6px;margin:0}
+  .sechead{align-items:flex-start;gap:8px;flex-wrap:wrap}
+  .note{font-size:13px;line-height:1.4;margin:6px 0 10px}
+  .listing-note{margin-top:2px;margin-bottom:10px}
+  #listings .sechead{margin-bottom:0}
+  #listings{margin-top:0}
+
+  /* Touch targets ≥44px */
+  .chip{min-height:44px;padding:10px 16px;font-size:14px;display:inline-flex;align-items:center}
+  .chips{gap:8px;padding-bottom:4px;margin-bottom:4px}
+  .fl{gap:8px}
+  .lbl{margin:12px 0 8px;font-size:12px;letter-spacing:.02em;text-transform:uppercase}
+  .pill{min-height:48px;padding:14px 20px;font-size:15px}
+  .pill.sm{min-height:44px;padding:12px 16px;font-size:14px}
+  .ddb{min-height:48px;padding:14px 16px}
+  .seg{flex-wrap:wrap;border-radius:16px;gap:4px;padding:4px}
+  .seg button{min-height:44px;padding:10px 12px;font-size:13px;flex:1 1 auto}
+  .seg#plan{border-radius:16px}
+  .seg#plan button{flex:1 1 calc(50% - 4px);font-size:13px;min-height:44px}
+
+  /* Listing cards: photo-forward */
+  .ph{height:200px}
+  .cb{padding:16px}
+  .cb h3{font-size:17px;line-height:1.3}
+  .pr{font-size:26px;margin:10px 0 0;letter-spacing:-.8px}
+  .grid{gap:14px}
+
+  /* Landlord portal buttons */
+  .profile{flex-direction:column;align-items:stretch;gap:12px}
+  .profile .btns{width:100%}
+  .profile .btns .pill{width:100%}
+  .ml{flex-direction:column;gap:12px;padding:16px 0}
+  .ml>img{width:100%;height:160px;border-radius:16px}
+  .ml .btns{display:grid;grid-template-columns:1fr;gap:8px;width:100%;margin-top:10px}
+  .ml .btns .pill{width:100%;justify-content:center;text-align:center}
+  .kpis{grid-template-columns:1fr 1fr;gap:10px}
+  .appcard .btns{display:grid;grid-template-columns:1fr;gap:8px}
+  .appcard .btns .pill{width:100%}
+  .btns{gap:8px}
+  .sheet .in{padding:20px 16px calc(20px + env(safe-area-inset-bottom,0px));gap:12px}
+  .sheet .pill{min-height:48px}
+
+  /* Bottom nav + float: clear content, safe areas */
+  .bnav{
+    left:max(10px,env(safe-area-inset-left,0px));
+    right:max(10px,env(safe-area-inset-right,0px));
+    bottom:max(10px,env(safe-area-inset-bottom,0px));
+    padding:8px 4px;
+  }
+  .bnav a{min-width:56px;min-height:48px;justify-content:center;padding:6px 10px;gap:2px}
+  /* Mobile: hide float so listings and CTAs stay clear; WhatsApp remains in Contact */
+  .wafloat{display:none}
+  .toast{bottom:calc(110px + env(safe-area-inset-bottom,0px));max-width:calc(100vw - 32px);text-align:center}
+  footer{padding:24px 0 calc(12px + env(safe-area-inset-bottom,0px));font-size:12px;line-height:1.55}
+  .search{margin-bottom:16px}
+  .agentcta{padding:18px}
+  .cta{padding:24px 18px;border-radius:18px}
+  .tiers .tier{padding:18px}
+  .amt{font-size:34px}
+  .row{grid-template-columns:1fr;gap:10px}
+  .row button{grid-column:auto}
+  .f input,.f textarea,.f select{min-height:48px;font-size:16px;border-radius:14px}
+  .f textarea{min-height:96px}
+}
+
+@media(min-width:760px){
+  .mhero{display:none!important}
+  .home-stack>.carousel{display:block}
+}

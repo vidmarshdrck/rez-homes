@@ -1,6 +1,20 @@
 # REZ Homes (static prototype)
 Property listings and advertising for Zambia. No investment product.
 
+## Newcomer commands
+```bash
+# Open the site locally (no build step)
+python3 -m http.server 8080
+# then visit http://localhost:8080/
+
+# Or open the file directly
+open index.html   # macOS; on Linux use xdg-open
+
+# Run the existing browser checks (from the sibling rez/ folder when present)
+# node ../test/v4.js
+```
+
+
 - Plain HTML/CSS/JS, hosted on GitHub Pages. Open `index.html` to run it.
 - **Data:** all data (accounts, listings, applications, saved trips, agents, tasks, notifications) lives in the browser's localStorage via `data.js` (`DB.*`). It's per-device and demo-only. To go live, re-implement `data.js` with the Supabase client (Auth, `listings`, `applications` and Storage for photos). The UI only talks to `DB`, so it doesn't need to change.
 - **Google sign-in** is a mock (demo). Real Google OAuth will come with Supabase Auth.
@@ -33,3 +47,10 @@ Property listings and advertising for Zambia. No investment product.
 - **Boost discount offer** (PROPOSED): "Apply for a discount" in the boost sheet. A random whole-kwacha % inside `BOOST_DISCOUNT_MIN_PCT`–`BOOST_DISCOUNT_MAX_PCT` (5–15), capped by `DEMAND_LEVEL` (placeholder `normal` → max 10%, `high` → off), never below `BOOST_PRICE_FLOOR_PER_WEEK` (K85). Shows the "was" price and is locked per listing for `BOOST_DISCOUNT_OFFER_HOURS` (24) in localStorage.
 - **REZ Inspector portal** (`#/agent`): application with experience, optional licence and document uploads (metadata only), staff approve/reject, printable **REZ Certified Inspector** certificate (`#/cert/:id`, 1 year, "Not a professional licence"). Only approved inspectors with a valid certificate can take tasks. Reports carry photos, evidence documents and the inspector ID.
 - Tests: `../test/v5.js` (mobile viewport), plus `v3.js` and `v4.js`. Backend: `../supabase/schema.sql` section I.
+
+## Mobile listings-first (on top of v5)
+- Mobile (≤759px): compact hero, search, listings lead; tall carousel kept for desktop only.
+- Floating WhatsApp button hidden on mobile (Contact CTA remains); kept on desktop.
+- Touch targets ≥44px; landlord listing actions stack full-width.
+- Muted/green tokens darkened for WCAG AA contrast.
+- Footer stays "Powered by VIDMΛR" (never "Vidmar Holdings").

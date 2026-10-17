@@ -40,11 +40,17 @@ function homeCtx(){const u=DB.user(),lv=DB.listing(DB.lastViewed()||""),sv=(u?.s
 const recHTML=(title,why,list)=>list.length?`<section id="recs"><div class="sechead"><h2>${title}</h2><span class="badge">SAMPLE DATA</span></div><p class="note">${esc(why)}</p><div class="grid">${list.map(card).join("")}</div></section>`:"";
 
 // ---------- Home ----------
+/** Renders the home page with listings leading on mobile and the carousel kept for desktop. */
 function home(){
- app.innerHTML=`<section class="carousel fade" id="car">${SLIDES.map((s,i)=>`<div class="slide${i?"":" on"}" style="background-image:url('${s[0]}')"></div>`).join("")}
+ app.innerHTML=`<div class="home-stack fade">
+ <section class="mhero" aria-label="Browse homes">
+  <h1>Homes for rent across Zambia</h1>
+  <p class="lead">Boarding houses, rooms and family homes — deposit and upfront shown up front.</p>
+ </section>
+ <section class="carousel" id="car">${SLIDES.map((s,i)=>`<div class="slide${i?"":" on"}" style="background-image:url('${s[0]}')"></div>`).join("")}
  <div class="ovl"><p class="eyebrow">Rentals · Boarding houses · Zambia</p><h1 id="hl">${SLIDES[0][1]}</h1><p class="lead">Rooms for students. Homes for families moving to a new city. See the deposit, upfront months and requirements before you visit.</p><a class="pill pill-gold" href="#search">Search homes</a></div>
  <div class="dots">${SLIDES.map((_,i)=>`<i class="${i?"":"on"}"></i>`).join("")}</div></section>
- <form id="search" class="card search fade" onsubmit="return false">
+ <form id="search" class="card search home-search" onsubmit="return false">
   <span class="lbl">City</span><div class="chips" id="cityChips">${["All",...CITIES].map(c=>`<button type="button" class="chip${(c==="All"?!F.cities.length:F.cities.includes(c))?" on":""}" data-c="${c}">${c}</button>`).join("")}</div>
   <span class="lbl">Type</span><div class="fl" id="typeT">${Object.entries(TYPES).map(([k,v])=>`<button type="button" class="chip t${F.types.includes(k)?" on":""}" data-t="${k}">${v}</button>`).join("")}</div>
   <span class="lbl">Price</span><div class="dd"><button type="button" class="ddb" id="ddb"><span id="ddl">Any price</span><span>▾</span></button>
@@ -56,7 +62,8 @@ function home(){
  <section id="listings"><div class="sechead"><h2>Listings</h2><span class="badge">SAMPLE DATA</span></div><p class="note">Example listings for demonstration only, not real properties. Homes, rooms and shop/store spaces. Featured listings show first. Only listings inspected by REZ carry the ✓ Verified badge. Browsing is free, no account needed.</p><div id="grid" class="grid"></div></section>
  ${pricingHTML()}
  <section id="agents" class="card box agentcta"><div><span class="badge">NEW · PROPOSED</span><h2>Real estate agent? Become a REZ Certified Inspector.</h2><p class="note">Apply with your experience and qualifications. Once REZ approves you, you get a REZ Certified Inspector certificate, inspect properties near you in your free time, and earn ${K(CFG.AGENT_COMMISSION)} per approved inspection (proposed). Tasks come to you, sorted by distance.</p></div><a class="pill pill-gold" href="#/agent">Apply as a REZ inspector</a></section>
- <section id="contact" class="card cta"><h2>Questions? Let's talk.</h2><p>Landlord wanting to list, or tenant looking for a place?</p><a class="pill pill-gold" href="${wa("Hi REZ, I'd like to list my property / ask about a rental.")}" target="_blank">Chat on WhatsApp</a><p class="note light">REZ customer service · ${esc(CFG.WHATSAPP_DISPLAY)} (placeholder number)</p></section>`;
+ <section id="contact" class="card cta"><h2>Questions? Let's talk.</h2><p>Landlord wanting to list, or tenant looking for a place?</p><a class="pill pill-gold" href="${wa("Hi REZ, I'd like to list my property / ask about a rental.")}" target="_blank">Chat on WhatsApp</a><p class="note light">REZ customer service · ${esc(CFG.WHATSAPP_DISPLAY)} (placeholder number)</p></section>
+ </div>`;
  let i=0;const sl=app.querySelectorAll(".slide"),dt=app.querySelectorAll(".dots i");
  timer=setInterval(()=>{sl[i].classList.remove("on");dt[i].classList.remove("on");i=(i+1)%sl.length;sl[i].classList.add("on");dt[i].classList.add("on");$("#hl").innerHTML=SLIDES[i][1]},4500);
  $("#cityChips").onclick=e=>{const b=e.target.closest(".chip");if(!b)return;const c=b.dataset.c;if(c==="All")F.cities=[];else F.cities=F.cities.includes(c)?F.cities.filter(x=>x!==c):[...F.cities,c];home2()};
@@ -270,6 +277,7 @@ function authView(mode){
 const daysListed=l=>l.verifiedAt||l.sample?Math.max(0,Math.floor((DB.now()-(l.verifiedAt||l.created))/DB.DAY)):0;
 function vstepper(l){if(l.vstatus==="rejected")return`<div class="steps"><span class="s bad">✕ Rejected</span></div>`;const i=VSTEPS.findIndex(s=>s[0]===l.vstatus);
  return`<div class="steps">${VSTEPS.map((s,j)=>`<span class="s${j<i?" done":j===i?" cur":""}">${j<i?"✓ ":""}${s[1]}</span>`).join("")}</div>`}
+/** Renders the landlord portal: plan, listings and applicant actions. */
 function landlord(){const u=DB.user();if(!u){toast("Sign in as a landlord first");return authView("up")}
  if(isStaff(u))return location.hash="#/admin";
  if(u.role!=="landlord")return app.innerHTML=`<div class="card box" style="margin-top:20px"><h3>Landlord portal</h3><p class="note">Your account is set to Tenant.</p><button class="pill pill-gold" id="sw">Switch to landlord</button></div>`,$("#sw").onclick=()=>{DB.updateUser({role:"landlord"});landlord()};
@@ -320,6 +328,7 @@ const CARE=[["🧹","Keep it clean and fresh","First impressions count. Sweep, a
  ["📅","Plan ahead for move-outs","When a tenant gives notice, tap \"Tenant leaving soon\" so new tenants can apply before the room goes empty."]];
 const careHTML=()=>`<div class="card box"><h3>Property care tips from REZ</h3><p class="note" style="margin-top:0">A well-kept home earns more and fills faster. Here's what works for landlords across Zambia.</p><div class="care">${CARE.map(c=>`<div><i>${c[0]}</i><b>${esc(c[1])}</b><p>${esc(c[2])}</p></div>`).join("")}</div></div>`;
 const rerender=()=>{const y=scrollY;clearMaps();route(true);scrollTo(0,y)};
+/** Builds the action buttons for one landlord listing row. */
 function actionsFor(l,sub){const b=(a,t,c="pill-ghost")=>`<button class="pill ${c} sm" data-act="${a}">${t}</button>`;const renewB=l=>l.vexpired&&!l.renewalPaid?b("renew",`Renew verification ${K(CFG.VERIFICATION_FEE)}/yr`,"pill-green"):"";
  switch(l.status){
   case"draft":return b("submit","Submit for verification","pill-green");
@@ -602,6 +611,26 @@ function certView(id){const c=DB.certificate(id);
  $("#prt").onclick=()=>print();
  $("#dlc").onclick=()=>{const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>REZ Certified Inspector · ${esc(c.holder)} · ${esc(c.no)}</title><style>body{margin:0;padding:20px;background:#F6F8F7}${CERT_CSS}</style></head><body>${certHTML(c,st)}</body></html>`;
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([html],{type:"text/html"}));a.download=`REZ-Certified-Inspector-${c.no}.html`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}}
+
+
+/** Hides the WhatsApp float while scrolling down so it does not cover listings or CTAs. */
+function setupWhatsAppFloatBehaviour(){
+  const button=document.getElementById("wafloat");
+  if(!button||button.dataset.scrollBound)return;
+  button.dataset.scrollBound="1";
+  let lastY=window.scrollY, ticking=false;
+  const update=()=>{
+    const y=window.scrollY;
+    const goingDown=y>lastY+8;
+    const goingUp=y<lastY-8;
+    if(y<24)button.classList.remove("scroll-hide");
+    else if(goingDown)button.classList.add("scroll-hide");
+    else if(goingUp)button.classList.remove("scroll-hide");
+    lastY=y; ticking=false;
+  };
+  addEventListener("scroll",()=>{if(!ticking){ticking=true;requestAnimationFrame(update)}},{passive:true});
+}
+setupWhatsAppFloatBehaviour();
 
 // ---------- Router ----------
 function route(keep){if(keep!==true)closeSheet();const h=location.hash.replace(/^#\/?/,""),[r,id]=h.split("/");
