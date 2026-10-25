@@ -1,0 +1,154 @@
+/* Firm profile (#/company/:id). Identity row is an 88px logo, not a split hero.
+   REZ green/gold only — do not introduce VH blue. */
+
+.rez-company{
+  --rez-green: var(--g);
+  --rez-green-soft: var(--g2);
+  --rez-gold: var(--gold);
+  --rez-ink: var(--ink);
+  --rez-muted: var(--mut);
+  --rez-white: #fff;
+  --rez-radius: 24px;
+  --sp-1: 8px;
+  --sp-2: 13px;
+  --sp-3: 21px;
+  --sp-4: 34px;
+  --sp-5: 55px;
+  --sp-6: 89px;
+  --rez-copy-max: 40ch;
+  padding: var(--sp-4) 0 var(--sp-2);
+}
+.rez-company .identity{
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  column-gap: var(--sp-3);
+  row-gap: var(--sp-2);
+  align-items: center;
+  margin: 0 0 var(--sp-4);
+}
+.rez-company .logo{
+  width: 88px;
+  height: 88px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--rez-green-soft);
+  display: grid;
+  place-items: center;
+  color: var(--rez-green);
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: -0.5px;
+}
+.rez-company .logo img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.rez-company .id-main h1{
+  font-size: 40px;
+  line-height: 1.05;
+  letter-spacing: -1.2px;
+  margin: 0;
+  color: var(--rez-ink);
+}
+.rez-company .tagline{
+  margin: 6px 0 0;
+  max-width: var(--rez-copy-max);
+  color: var(--rez-muted);
+  font-size: 16px;
+  line-height: 1.4;
+}
+.rez-company .id-contacts{
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.rez-company .trust-strip{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0;
+}
+.rez-company .trust-strip .stat{
+  background: var(--rez-white);
+  border-radius: 20px;
+  padding: var(--sp-3);
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.rez-company .trust-strip .stat b{
+  display: block;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: var(--rez-green);
+}
+.rez-company .trust-strip .stat small{
+  color: var(--rez-muted);
+  font-weight: 600;
+}
+.rez-company .trust-strip .stat-reg b{
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+  color: var(--rez-ink);
+}
+.rez-company .reg{
+  margin: 0 0 var(--sp-4);
+}
+.rez-company .reg small{
+  display: block;
+  color: var(--rez-muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+.rez-company .reg b{
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--rez-ink);
+}
+.rez-company .id-links{display: flex; flex-wrap: wrap; gap: var(--sp-1)}
+.rez-company .about,
+.rez-company .firm-listings{margin: var(--sp-4) 0}
+.rez-company .about h2,
+.rez-company .firm-listings h2{margin-bottom: var(--sp-2)}
+.rez-company .about p{
+  color: var(--rez-muted);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 56ch;
+}
+.rez-company .city-row{display: flex; flex-wrap: wrap; gap: var(--sp-1)}
+.rez-company .city-chip{
+  background: #fff;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--rez-green);
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.rez-company .cta-band{
+  background: var(--rez-ink);
+  color: #fff;
+  border-radius: var(--rez-radius);
+  padding: var(--sp-4);
+  text-align: center;
+  margin: var(--sp-5) 0 var(--sp-4);
+}
+.rez-company .cta-band h2{color: #fff}
+.rez-company .cta-band p{color: #b9c6bf; margin: 8px 0 20px}
+.rez-company .cta-band .btns{justify-content: center}
+
+@media (max-width: 759px){
+  .rez-company .identity{grid-template-columns: 72px minmax(0, 1fr)}
+  .rez-company .logo{width: 72px; height: 72px; font-size: 22px}
+  .rez-company .id-contacts{grid-column: 1 / -1}
+  .rez-company .id-main h1{font-size: 32px}
+  .rez-company .trust-strip{grid-template-columns: 1fr}
+}

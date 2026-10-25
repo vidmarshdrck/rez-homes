@@ -56,6 +56,24 @@ assert.strictEqual(boostQuote(0).weeks, 1);
 assert.strictEqual(boostQuote(99).weeks, 20);
 assert.strictEqual(BOOST.recommendedWeeks, 5);
 
+const fs = require("fs");
+const path = require("path");
+const root = path.join(__dirname, "..");
+const cfg = fs.readFileSync(path.join(root, "config.js"), "utf8");
+assert.match(cfg, /PAYMENTS_ENABLED:\s*false/);
+assert.match(cfg, /BOOST_DISCOUNT_ENABLED:\s*false/);
+const pub = ["app.js", "index.html", "templates.js", "rez-company.css"].map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n");
+for (const bad of ["SAMPLE DATA", "PROPOSED", "NEW · PROPOSED", "+260 XXX", "260000000000", "Continue as staff", "(mock)", "Demo:"]) {
+  assert.ok(!pub.includes(bad), "public file still contains " + bad);
+}
+assert.ok(pub.includes("#/company/"), "company route missing");
+assert.ok(!pub.includes("#/about"), "about route should not be added");
+const companyCss = fs.readFileSync(path.join(root, "rez-company.css"), "utf8");
+assert.ok(!companyCss.includes("hero-split"), "hero-split should be gone");
+assert.ok(!companyCss.includes("check-card"), "check-card should be gone");
+assert.ok(!/content:\s*"✓/.test(companyCss), "registration must not use a checkmark");
+assert.ok(companyCss.includes("88px"), "logo slot should be 88px");
+
 console.log("boost-formula.test.js: all assertions passed");
 console.log("Weekly rate used: K" + BOOST.week);
 console.log("Formula: plan.base + weeks × K" + BOOST.week + " (= estimated); discount on boost part; floor K" + FLOOR + "/wk");

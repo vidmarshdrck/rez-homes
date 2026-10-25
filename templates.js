@@ -59,10 +59,10 @@ window.REZ_TEMPLATES = {
   },
   // Field agent gets a task assigned by staff.
   agent_task_assigned: {
-    in_app: { title: "New inspection task", body: "REZ assigned you an inspection: {{listing_title}}, {{address}} ({{distance}}). Commission {{commission}} (PROPOSED) once your report is approved." },
+    in_app: { title: "New inspection task", body: "REZ assigned you an inspection: {{listing_title}}, {{address}} ({{distance}}). Commission {{commission}} once your report is approved." },
     sms: { body: "REZ Homes: new inspection task {{listing_title}}, {{address}}. Open your REZ agent tasks to accept." },
     whatsapp: { body: "Hi {{agent_name}}, REZ Homes has a new inspection task for you: *{{listing_title}}*, {{address}}. Open your agent tasks to accept it." },
-    email: { subject: "New REZ inspection task: {{listing_title}}", body: "Hi {{agent_name}},\n\nREZ assigned you an inspection: {{listing_title}}, {{address}}.\nCommission {{commission}} (PROPOSED) once your report is approved.\n\nREZ Homes" }
+    email: { subject: "New REZ inspection task: {{listing_title}}", body: "Hi {{agent_name}},\n\nREZ assigned you an inspection: {{listing_title}}, {{address}}.\nCommission {{commission}} once your report is approved.\n\nREZ Homes" }
   }
 };
 window.REZ_TPL = {

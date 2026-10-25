@@ -67,7 +67,7 @@ ensureTestSeed();
 
 // migrate v2 records (status "pending", verified flag) once
 (()=>{const a=get("listings",[]);if(a.some(l=>!l.vstatus)){set("listings",a.map(l=>l.vstatus?l:{...l,vstatus:l.verified?"verified":"awaiting_payment",payConfirmed:false}))}})();
-const users=()=>get("users",[]), userById=id=>users().find(u=>u.id===id);
+function users(){return get("users",[])} const userById=id=>users().find(u=>u.id===id);
 const plan=u=>C.PLANS.find(p=>p.id===(u?.plan||"starter"))||C.PLANS[0];
 const subActive=u=>!!u&&(u.subPaidUntil||0)>now();
 const raw=()=>get("listings",[]);
@@ -198,6 +198,28 @@ const DB={
  // ----- accounts -----
  users, userById,
  user:()=>get("session",null)&&userById(get("session")),
+ /** Same digit gate as the public contact line: drop masks and the all-zero stand-in. */
+ publicPhone(s){const raw=String(s||"").trim();if(!raw||/x/i.test(raw))return"";let d=raw.replace(/\D/g,"");if(d.startsWith("0"))d="260"+d.slice(1);if(!d||/^2600{9}$/.test(d)||/^0+$/.test(d))return"";return d},
+ /** Public firm profile. display_name is required. Optional fields stay blank until set — never invent them. v1 seeds the name from the landlord, and the landlord phone only when it is a real number. */
+ company(id){
+  if(!id)return null;
+  const saved=(get("companies",[])).find(c=>c.id===id)||null;
+  const ownerId=(saved&&saved.ownerId)||id;
+  const u=userById(ownerId);
+  const isLL=!!u&&(u.role==="landlord"||(u.roles||[]).includes("landlord"));
+  if(!saved&&!isLL)return null;
+  const text=k=>String((saved&&saved[k])||"").trim();
+  const display_name=text("display_name")||String((u&&u.name)||"").trim();
+  if(!display_name)return null;
+  let phone=text("phone");
+  if(!saved&&u&&DB.publicPhone(u.phone))phone=String(u.phone).trim();
+  return {id:saved&&saved.id||ownerId,ownerId,display_name,logo:text("logo"),tagline:text("tagline"),about:text("about"),
+   cities:Array.isArray(saved&&saved.cities)?saved.cities.map(x=>String(x||"").trim()).filter(Boolean):[],
+   whatsapp:text("whatsapp"),phone,email:text("email"),
+   registration_body:text("registration_body"),registration_number:text("registration_number")};
+ },
+ /** Live listings for a firm. Example catalog rows stay off this page. */
+ companyListings(ownerId){return listings().filter(l=>l.owner===ownerId&&l.status==="active"&&!l.sample)},
  signUp({name,email,password,role,google,phone}){const us=users();if(us.find(u=>u.email===email))throw Error("An account with this email already exists");const roles=["tenant"];const u={id:uid(),name,email,password,role:"tenant",roles,phone:phone||"",google:!!google,plan:"starter",subPaidUntil:0,saved:[],trips:[],meets:{},created:now()};us.push(u);set("users",us);set("session",u.id);return u},
  signIn(email,password){const u=users().find(u=>u.email===email&&u.password===password);if(!u)throw Error("Wrong email or password");set("session",u.id);return u},
  signOut(){localStorage.removeItem(K("session"))},
