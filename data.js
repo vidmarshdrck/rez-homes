@@ -198,7 +198,9 @@ const DB={
  // ----- accounts -----
  users, userById,
  user:()=>get("session",null)&&userById(get("session")),
- /** Public firm profile. display_name is required. Optional fields stay blank until set — never invent them. v1 seeds the name from the landlord. */
+ /** Same digit gate as the public contact line: drop masks and the all-zero stand-in. */
+ publicPhone(s){const raw=String(s||"").trim();if(!raw||/x/i.test(raw))return"";let d=raw.replace(/\D/g,"");if(d.startsWith("0"))d="260"+d.slice(1);if(!d||/^2600{9}$/.test(d)||/^0+$/.test(d))return"";return d},
+ /** Public firm profile. display_name is required. Optional fields stay blank until set — never invent them. v1 seeds the name from the landlord, and the landlord phone only when it is a real number. */
  company(id){
   if(!id)return null;
   const saved=(get("companies",[])).find(c=>c.id===id)||null;
@@ -209,9 +211,11 @@ const DB={
   const text=k=>String((saved&&saved[k])||"").trim();
   const display_name=text("display_name")||String((u&&u.name)||"").trim();
   if(!display_name)return null;
+  let phone=text("phone");
+  if(!saved&&u&&DB.publicPhone(u.phone))phone=String(u.phone).trim();
   return {id:saved&&saved.id||ownerId,ownerId,display_name,logo:text("logo"),tagline:text("tagline"),about:text("about"),
    cities:Array.isArray(saved&&saved.cities)?saved.cities.map(x=>String(x||"").trim()).filter(Boolean):[],
-   whatsapp:text("whatsapp"),phone:text("phone"),email:text("email"),
+   whatsapp:text("whatsapp"),phone,email:text("email"),
    registration_body:text("registration_body"),registration_number:text("registration_number")};
  },
  /** Live listings for a firm. Example catalog rows stay off this page. */

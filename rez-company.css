@@ -1,5 +1,5 @@
-/* Firm profile (#/company/:id). φ split and spacing from the Hiram sheet.
-   REZ green/gold only — do not introduce VH blue. Class is .rez-company. */
+/* Firm profile (#/company/:id). Identity row is an 88px logo, not a split hero.
+   REZ green/gold only — do not introduce VH blue. */
 
 .rez-company{
   --rez-green: var(--g);
@@ -15,67 +15,56 @@
   --sp-4: 34px;
   --sp-5: 55px;
   --sp-6: 89px;
-  --rez-split-major: 61.8%;
-  --rez-split-minor: 38.2%;
-  --rez-copy-max: 34ch;
-  padding: var(--sp-3) 0 var(--sp-2);
+  --rez-copy-max: 40ch;
+  padding: var(--sp-4) 0 var(--sp-2);
 }
-.rez-company .hero-split{
+.rez-company .identity{
   display: grid;
-  grid-template-columns: var(--rez-split-major) var(--rez-split-minor);
-  gap: var(--sp-3);
-  min-height: 420px;
-  align-items: stretch;
+  grid-template-columns: 88px minmax(0, 1fr);
+  column-gap: var(--sp-3);
+  row-gap: var(--sp-2);
+  align-items: center;
+  margin: 0 0 var(--sp-4);
 }
-.rez-company .hero-split .visual{
-  position: relative;
-  border-radius: 28px;
+.rez-company .logo{
+  width: 88px;
+  height: 88px;
+  border-radius: 20px;
   overflow: hidden;
-  background: var(--rez-green);
-  min-height: 280px;
+  background: var(--rez-green-soft);
+  display: grid;
+  place-items: center;
+  color: var(--rez-green);
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: -0.5px;
 }
-.rez-company .hero-split .visual img{
-  position: absolute;
-  inset: 0;
+.rez-company .logo img{
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
-.rez-company .visual-fill{
-  min-height: 280px;
-  height: 100%;
-  background: linear-gradient(160deg, var(--rez-green), #064e2c 72%, var(--rez-gold));
-}
-.rez-company .hero-split .statement{
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding: var(--sp-4);
-  background: var(--rez-ink);
-  color: var(--rez-white);
-  border-radius: 28px;
-}
-.rez-company .hero-split .statement .eyebrow{
-  color: var(--rez-gold);
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  margin: 0;
-}
-.rez-company .statement h1{
-  font-size: 36px;
+.rez-company .id-main h1{
+  font-size: 40px;
   line-height: 1.05;
   letter-spacing: -1.2px;
-  color: #fff;
-  margin: 8px 0 10px;
-}
-.rez-company .statement .lead{
-  color: #b9c6bf;
-  max-width: var(--rez-copy-max);
-  font-size: 16px;
   margin: 0;
+  color: var(--rez-ink);
+}
+.rez-company .tagline{
+  margin: 6px 0 0;
+  max-width: var(--rez-copy-max);
+  color: var(--rez-muted);
+  font-size: 16px;
+  line-height: 1.4;
+}
+.rez-company .id-contacts{
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
 }
 .rez-company .trust-strip{
   display: grid;
@@ -100,46 +89,40 @@
   color: var(--rez-muted);
   font-weight: 600;
 }
-.rez-company .how-grid{
-  display: grid;
-  grid-template-columns: var(--rez-split-major) var(--rez-split-minor);
-  gap: var(--sp-3);
-  align-items: start;
-  margin: var(--sp-4) 0;
+.rez-company .trust-strip .stat-reg b{
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+  color: var(--rez-ink);
 }
-.rez-company .how-single{margin: var(--sp-4) 0}
-.rez-company .narrative h2,
-.rez-company .verify-note h2,
-.rez-company .cities h2,
+.rez-company .reg{
+  margin: 0 0 var(--sp-4);
+}
+.rez-company .reg small{
+  display: block;
+  color: var(--rez-muted);
+  font-weight: 600;
+  font-size: 13px;
+}
+.rez-company .reg b{
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--rez-ink);
+}
+.rez-company .id-links{display: flex; flex-wrap: wrap; gap: var(--sp-1)}
+.rez-company .about,
+.rez-company .firm-listings{margin: var(--sp-4) 0}
+.rez-company .about h2,
 .rez-company .firm-listings h2{margin-bottom: var(--sp-2)}
-.rez-company .narrative p,
-.rez-company .verify-note p{
+.rez-company .about p{
   color: var(--rez-muted);
   line-height: 1.55;
   margin: 0;
-  max-width: 62ch;
+  max-width: 56ch;
 }
-.rez-company .check-card{
-  background: var(--rez-green-soft);
-  border-radius: var(--rez-radius);
-  padding: var(--sp-3);
-  margin: 0;
-}
-.rez-company .check-card li{
-  list-style: none;
-  padding: 10px 0;
-  border-top: 1px solid rgba(11,138,74,.15);
-  font-weight: 600;
-}
-.rez-company .check-card li:first-child{border-top: 0}
-.rez-company .check-card li::before{
-  content: "✓ ";
-  color: var(--rez-green);
-  font-weight: 800;
-}
-.rez-company .verify-note,
-.rez-company .cities,
-.rez-company .firm-listings{margin: var(--sp-4) 0}
 .rez-company .city-row{display: flex; flex-wrap: wrap; gap: var(--sp-1)}
 .rez-company .city-chip{
   background: #fff;
@@ -163,9 +146,9 @@
 .rez-company .cta-band .btns{justify-content: center}
 
 @media (max-width: 759px){
-  .rez-company .hero-split,
-  .rez-company .how-grid{grid-template-columns: 1fr}
+  .rez-company .identity{grid-template-columns: 72px minmax(0, 1fr)}
+  .rez-company .logo{width: 72px; height: 72px; font-size: 22px}
+  .rez-company .id-contacts{grid-column: 1 / -1}
+  .rez-company .id-main h1{font-size: 32px}
   .rez-company .trust-strip{grid-template-columns: 1fr}
-  .rez-company .hero-split .statement{min-height: auto; padding: var(--sp-3)}
-  .rez-company .statement h1{font-size: 32px}
 }

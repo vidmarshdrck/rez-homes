@@ -68,6 +68,11 @@ for (const bad of ["SAMPLE DATA", "PROPOSED", "NEW · PROPOSED", "+260 XXX", "26
 }
 assert.ok(pub.includes("#/company/"), "company route missing");
 assert.ok(!pub.includes("#/about"), "about route should not be added");
+const companyCss = fs.readFileSync(path.join(root, "rez-company.css"), "utf8");
+assert.ok(!companyCss.includes("hero-split"), "hero-split should be gone");
+assert.ok(!companyCss.includes("check-card"), "check-card should be gone");
+assert.ok(!/content:\s*"✓/.test(companyCss), "registration must not use a checkmark");
+assert.ok(companyCss.includes("88px"), "logo slot should be 88px");
 
 console.log("boost-formula.test.js: all assertions passed");
 console.log("Weekly rate used: K" + BOOST.week);

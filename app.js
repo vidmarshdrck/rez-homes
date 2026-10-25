@@ -794,39 +794,41 @@ function companyView(id){
  const list=DB.companyListings(c.ownerId);
  const cities=servedCities(c,list);
  const verifiedN=list.filter(vvv).length;
+ const reg=[c.registration_body,c.registration_number].map(s=>String(s||"").trim()).filter(Boolean);
+ const regLine=reg.join(" · ");
  const stats=[];
  if(list.length)stats.push([String(list.length),list.length===1?"Listing":"Listings"]);
  if(verifiedN)stats.push([String(verifiedN),"Verified"]);
  if(cities.length)stats.push([String(cities.length),cities.length===1?"City":"Cities"]);
- const photo=c.logo||((list.find(l=>l.photos&&l.photos[0])||{}).photos||[])[0]||"";
+ if(regLine)stats.push([regLine,"Registration"]);
  const about=String(c.about||"").trim();
  const tagline=String(c.tagline||"").trim();
- const reg=[c.registration_body,c.registration_number].map(s=>String(s||"").trim()).filter(Boolean);
  const waNum=contactDigits(c.whatsapp),phoneNum=contactDigits(c.phone);
  const email=String(c.email||"").trim(),emailOk=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
  const contacts=[];
- if(waNum)contacts.push(`<a class="pill pill-gold" target="_blank" rel="noopener" href="https://wa.me/${waNum}">WhatsApp</a>`);
- if(phoneNum)contacts.push(`<a class="pill pill-ghost" href="tel:+${phoneNum}">Call</a>`);
- if(emailOk)contacts.push(`<a class="pill pill-ghost" href="mailto:${esc(email)}">Email</a>`);
- const lines=[];if(waNum)lines.push("+"+waNum);if(phoneNum&&phoneNum!==waNum)lines.push("+"+phoneNum);if(emailOk)lines.push(email);
- const side=reg.length?`<ul class="check-card"><li>${esc(reg.join(" · "))}</li></ul>`:"";
- const aboutHtml=about?`<div class="narrative"><h2>About</h2><p>${esc(about).replace(/\n/g,"<br>")}</p></div>`:"";
- const how=aboutHtml&&side?`<section class="how-grid">${aboutHtml}${side}</section>`:aboutHtml?`<section class="how-single">${aboutHtml}</section>`:side?`<section class="how-single">${side}</section>`:"";
+ if(phoneNum)contacts.push(`<a class="pill pill-ghost sm" href="tel:+${phoneNum}">+${esc(phoneNum)}</a>`);
+ if(waNum)contacts.push(`<a class="pill pill-ghost sm" target="_blank" rel="noopener" href="https://wa.me/${waNum}">WhatsApp</a>`);
+ if(emailOk)contacts.push(`<a class="pill pill-ghost sm" href="mailto:${esc(email)}">${esc(email)}</a>`);
+ const parts=c.display_name.trim().split(/\s+/).filter(Boolean);
+ const initials=parts.length>1?(parts[0][0]+parts[parts.length-1][0]):(parts[0]||"?").slice(0,2);
+ const logo=c.logo?`<img src="${esc(c.logo)}" alt="">`:`<span>${esc(initials.toUpperCase())}</span>`;
+ const chips=cities.length?`<div class="city-row">${cities.map(city=>`<span class="city-chip">${esc(city)}</span>`).join("")}</div>`:"";
+ const regHtml=regLine?`<p class="reg"><small>Registration</small><b>${esc(regLine)}</b></p>`:"";
+ const aboutHtml=about?`<section class="about"><h2>About</h2><p>${esc(about).replace(/\n/g,"<br>")}</p></section>`:"";
  app.innerHTML=`<article class="rez-company fade">
-  <div class="hero-split">
-   <div class="visual">${photo?`<img src="${esc(photo)}" alt="">`:`<div class="visual-fill" aria-hidden="true"></div>`}</div>
-   <div class="statement">
-    ${cities.length?`<p class="eyebrow">${esc(cities.slice(0,3).join(" · "))}</p>`:""}
+  <header class="identity">
+   <div class="logo" aria-hidden="${c.logo?"false":"true"}">${logo}</div>
+   <div class="id-main">
     <h1>${esc(c.display_name)}</h1>
-    ${tagline?`<p class="lead">${esc(tagline)}</p>`:""}
+    ${tagline?`<p class="tagline">${esc(tagline)}</p>`:""}
    </div>
-  </div>
-  ${stats.length?`<div class="trust-strip">${stats.map(([n,lab])=>`<div class="stat"><b>${esc(n)}</b><small>${esc(lab)}</small></div>`).join("")}</div>`:""}
-  ${how}
-  ${verifiedN?`<section class="verify-note"><h2>Verified listings</h2><p>Verified means a REZ inspector checked the photos and the details. The badge stays while that check is current.</p></section>`:""}
-  ${cities.length?`<section class="cities"><h2>Cities</h2><div class="city-row">${cities.map(city=>`<span class="city-chip">${esc(city)}</span>`).join("")}</div></section>`:""}
-  ${list.length?`<section class="firm-listings"><h2>Listings</h2><div class="grid">${list.map(card).join("")}</div></section>`:""}
-  ${contacts.length?`<section class="cta-band"><h2>Contact ${esc(c.display_name)}</h2>${lines.length?`<p>${lines.map(esc).join(" · ")}</p>`:""}<div class="btns">${contacts.join("")}</div></section>`:""}
+   ${chips||contacts.length?`<div class="id-contacts">${chips}${contacts.length?`<div class="id-links">${contacts.join("")}</div>`:""}</div>`:""}
+  </header>
+  ${stats.length?`<div class="trust-strip">${stats.map(([n,lab])=>`<div class="stat${lab==="Registration"?" stat-reg":""}"><b>${esc(n)}</b><small>${esc(lab)}</small></div>`).join("")}</div>`:""}
+  ${regHtml}
+  ${aboutHtml}
+  ${list.length?`<section class="firm-listings"><h2>Homes from ${esc(c.display_name)}</h2><div class="grid">${list.map(card).join("")}</div></section>`:""}
+  ${contacts.length?`<section class="cta-band"><h2>Enquire about a listing</h2><div class="btns">${contacts.join("")}</div></section>`:""}
  </article>`;
  bindPhotoCarousels(app);
 }
