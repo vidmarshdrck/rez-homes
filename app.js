@@ -14,7 +14,9 @@ const VLABEL={draft:"Draft",awaiting_payment:"Awaiting verification payment",ins
 const SLABEL={draft:"Draft",verification:"In verification",rejected:"Rejected",unpaid:"Verified · pay plan to go live",active:"Active",occupied:"Occupied · hidden",expired:"Expired · fee unpaid"};
 let F={cities:[],types:[],price:null,max:20000}, maps=[], timer;
 const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),2400)};
-const wa=m=>`https://wa.me/${WA}?text=${encodeURIComponent(m)}`;
+/** Customer-service WhatsApp is usable only when the configured number is real. The all-zero stand-in and any masked display stay off public UI. */
+const waReady=()=>{const d=String(WA||"").replace(/\D/g,"");const display=String(CFG.WHATSAPP_DISPLAY||"");if(!d||/x/i.test(display)||/x/i.test(String(WA||""))||/^2600{9}$/.test(d))return false;return true};
+const wa=m=>waReady()?`https://wa.me/${String(WA).replace(/\D/g,"")}?text=${encodeURIComponent(m)}`:"";
 const isFeat=l=>!!(l.featured||(l.boostUntil&&l.boostUntil>DB.now()));
 const sortF=a=>a.sort((x,y)=>(isFeat(y)-isFeat(x)));
 const vvv=l=>l.vstatus==="verified"&&!l.flagReverify&&!l.vexpired;
@@ -97,7 +99,7 @@ function home(){
  <section id="listings"><div class="sechead"><h2>Listings</h2></div><p class="note">Browse homes across Zambia. Verified means a REZ inspector checked the listing. Free to browse.</p><div id="grid" class="grid"></div></section>
  ${pricingHTML()}
  <section id="agents" class="card box agentcta"><div><h2>Inspect for REZ</h2><p class="note">Apply with your experience and qualifications. Once REZ approves you, you get a REZ Certified Inspector certificate and can inspect properties near you in your free time. Commission depends on the property size, how far you travel and how long the inspection takes. Nearby tasks show up first.</p></div><a class="pill pill-gold" href="#/agent-info">How agents work</a></section>
- <section id="contact" class="card cta"><h2>Need a hand?</h2><p>Listing a home or looking for one — message us on WhatsApp.</p><a class="pill pill-gold" href="${wa("Hi REZ, I'd like to list my property / ask about a rental.")}" target="_blank">Chat on WhatsApp</a><p class="note light">REZ customer service · ${esc(CFG.WHATSAPP_DISPLAY)}</p></section>
+ <section id="contact" class="card cta"><h2>Need a hand?</h2><p>Listing a home or looking for one — browse the homes above, or open Account.</p>${waReady()?`<a class="pill pill-gold" href="${wa("Hi REZ, I'd like to list my property / ask about a rental.")}" target="_blank" rel="noopener">Chat on WhatsApp</a><p class="note light">REZ customer service · ${esc(CFG.WHATSAPP_DISPLAY)}</p>`:""}</section>
  </div>`;
  let i=0;const sl=app.querySelectorAll(".slide"),dt=app.querySelectorAll(".dots i");
  timer=setInterval(()=>{sl[i].classList.remove("on");dt[i].classList.remove("on");i=(i+1)%sl.length;sl[i].classList.add("on");dt[i].classList.add("on");$("#hl").innerHTML=SLIDES[i][1]},4500);
@@ -132,19 +134,19 @@ function bindBoost(root,onChange){const el=root&&root.querySelector(".bw");if(!e
 function packageBoostLine(planId,weeks,pct=0){const x=DB.packageBoostQuote(planId,weeks,pct);const boostPart=x.total<x.was?`${K(x.weekRate)} (−${x.pct}%)`:`${K(x.weekRate)}`;
  return{...x,html:`${K(x.base)} + ${x.weeks} week${x.weeks>1?"s":""} × ${boostPart} = <b>${K(x.estimated)}</b>`,text:`${K(x.base)} + ${x.weeks} weeks × ${K(x.weekRate)} = ${K(x.estimated)}`}}
 // v5: "Apply for a discount". One offer per listing, held for BOOST_DISCOUNT_OFFER_HOURS, so re-ticking or reloading shows the same offer.
-function boostSheet(l){const band=DB.discountBand();let offer=DB.boostOffer(l.id),on=!!offer;const paused="Discount offers are paused while boost demand is high. Check again later.";
+function boostSheet(l){const allowDisc=!!CFG.BOOST_DISCOUNT_ENABLED;const band=allowDisc?DB.discountBand():{off:true};let offer=allowDisc?DB.boostOffer(l.id):null,on=!!offer;const paused="Discount offers are paused while boost demand is high. Check again later.";
  sheet(`<h3>Boost: ${esc(l.title)}</h3><p class="note" style="margin:0">Shown first in search with a gold ★ Featured badge. Pick how many weeks.</p>${boostWidget(BOOST.recommendedWeeks)}
- <div class="card box disc" id="bdbox"><label class="ck"><input type="checkbox" id="bdisc" ${on?"checked":""} ${band.off&&!offer?"disabled":""}> Apply for a discount </label>
+ ${allowDisc?`<div class="card box disc" id="bdbox"><label class="ck"><input type="checkbox" id="bdisc" ${on?"checked":""} ${band.off&&!offer?"disabled":""}> Apply for a discount </label>
   <p class="note" id="bdnote" style="margin:0">${band.off&&!offer?paused:`Tick to see your discount offer: ${band.min}% to ${band.max}% off, depending on current demand. One offer per listing, held for ${CFG.BOOST_DISCOUNT_OFFER_HOURS} hours. A boost never costs less than ${K(CFG.BOOST_PRICE_FLOOR_PER_WEEK)} a week.`}</p>
-  <div id="boffer" class="offer hide"></div></div>
+  <div id="boffer" class="offer hide"></div></div>`:""}
  <p class="note" style="margin:0" id="bwend"></p><button class="pill pill-gold" id="bwgo">Continue to payment</button><button class="pill pill-ghost" id="cx">Cancel</button>`);
  const q=w=>on&&offer?DB.boostQuote(w,offer.pct,offer):DB.boostQuote(w,0);
  const paint=w=>{$("#bwend").textContent=`Featured until about ${D(Math.max(DB.now(),l.boostUntil||0)+w*7*DB.DAY)}.`;const x=q(w);
   $("#sheet .bwtotal").innerHTML=x.total<x.was?`<s class="was">${K(x.was)}</s> ${K(x.total)}`:K(x.total);
-  const bo=$("#boffer");if(!(on&&offer))return bo.classList.add("hide");bo.classList.remove("hide");
+  const bo=$("#boffer");if(!bo)return;if(!(on&&offer))return bo.classList.add("hide");bo.classList.remove("hide");
   bo.innerHTML=`<div class="sechead"><b>Your discount offer</b><span class="offpct">${offer.pct}% off</span></div><p class="offline">Was <s class="was">${K(x.was)}</s> · now <b class="now">${K(x.total)}</b> for ${w} week${w>1?"s":""} · you save ${K(x.saved)}</p><small class="note">${x.floorApplied?`Capped at the ${K(offer.floorPerWeek)}/week minimum price. `:""}Held for this listing until ${esc(new Date(offer.expires).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))}.</small>`};
  const gw=bindBoost($("#sheet"),paint);paint(gw());
- const cb=$("#bdisc");cb.onchange=()=>{if(cb.checked){try{offer=DB.getBoostOffer(l.id)}catch(e){cb.checked=false;return toast(e.message)}
+ const cb=$("#bdisc");if(cb)cb.onchange=()=>{if(cb.checked){try{offer=DB.getBoostOffer(l.id)}catch(e){cb.checked=false;return toast(e.message)}
    if(!offer){cb.checked=false;cb.disabled=true;$("#bdnote").textContent=paused;on=false}else on=true}else on=false;paint(gw())};
  $("#cx").onclick=closeSheet;
  $("#bwgo").onclick=()=>{const w=gw(),x=q(w),d=on&&offer&&x.total<x.was?{offerId:offer.id,pct:offer.pct,was:x.was,floorApplied:x.floorApplied}:null;
@@ -191,10 +193,10 @@ function payFlow({purpose,amount,listingId,label,planId,weeks,discount,onDone}){
   const p=DB.createPayment({purpose,listingId,landlord:u?.id,amount,method:m.id,planId,weeks,discount});
   const msg=`Hi REZ, I submitted a payment for ${label} by ${m.name}. Reference: ${p.ref}`;
   sheet(`<h3>Submitted</h3><p class="note">We'll send payment details for <b>${esc(m.name)}</b> shortly. Your reference is <b>${esc(p.ref)}</b>. Status stays pending until our team confirms.</p>
-  <a class="pill pill-green" id="wap" target="_blank" href="${wa(msg)}">Message REZ on WhatsApp</a>
+  ${waReady()?`<a class="pill pill-green" id="wap" target="_blank" rel="noopener" href="${wa(msg)}">Message REZ on WhatsApp</a>`:""}
   <button class="pill pill-ghost" id="cp">Copy reference</button><button class="pill pill-ghost" id="cx">Done</button>`);
   $("#cp").onclick=()=>{navigator.clipboard?.writeText(p.ref);toast("Reference copied")};
-  $("#cx").onclick=()=>{closeSheet();onDone&&onDone(p)};$("#wap").onclick=()=>{closeSheet();onDone&&onDone(p)};
+  $("#cx").onclick=()=>{closeSheet();onDone&&onDone(p)};const wap=$("#wap");if(wap)wap.onclick=()=>{closeSheet();onDone&&onDone(p)};
  });
 }
 
@@ -213,14 +215,14 @@ function detail(id){
  <div class="card box"><small class="note">Move-in cost estimate: ${K(l.rent*l.upfront)} rent upfront + ${K(l.deposit)} deposit = <b>${K(l.rent*l.upfront+(+l.deposit))}</b></small></div>
  <div class="card box"><h3>Do you meet the criteria?</h3>${(l.criteria||[]).map((c,i)=>`<label class="ck"><input type="checkbox" data-i="${i}" ${meets.includes(i)?"checked":""} ${u?"":"disabled"}>${esc(c)}</label>`).join("")||"<p class='note'>No special requirements.</p>"}
  <p class="note" id="mt">${u?`You meet ${meets.length} of ${(l.criteria||[]).length}.`:'<a href="#/account" style="color:var(--g);font-weight:700">Sign in</a> to check criteria and apply.'}</p>
- <div class="btns">${l.owner!==u?.id?`<button class="pill pill-green" id="apply">Apply</button>`:""}<button class="pill pill-ghost" id="sv">${saved?"♥ Saved":"♡ Save"}</button><a class="pill pill-ghost" id="enq" target="_blank" href="${wa("Hi, I'm interested in: "+l.title+" ("+l.city+") on REZ Homes")}">WhatsApp</a><button class="pill pill-ghost sm" id="rep">Report: doesn't match</button></div></div>
+ <div class="btns">${l.owner!==u?.id?`<button class="pill pill-green" id="apply">Apply</button>`:""}<button class="pill pill-ghost" id="sv">${saved?"♥ Saved":"♡ Save"}</button>${waReady()?`<a class="pill pill-ghost" id="enq" target="_blank" rel="noopener" href="${wa("Hi, I'm interested in: "+l.title+" ("+l.city+") on REZ Homes")}">WhatsApp</a><button class="pill pill-ghost sm" id="rep">Report: doesn't match</button>`:""}</div></div>
  <div class="card box"><h3>Amenities</h3><div class="fl">${(l.amenities||[]).map(a=>`<span class="chip">${esc(a)}</span>`).join("")||"<p class='note'>Not listed.</p>"}</div></div></div>
  <div><div class="card box"><h3>Location</h3><div class="mini" id="mini"></div><button class="pill pill-gold" style="width:100%;margin-top:12px" id="dir">Directions</button><a class="pill pill-ghost" style="width:100%;margin-top:8px" id="sv3d" target="_blank" rel="noopener" href="${sv3d(l)}">🧭 View in 3D / Street View</a><p class="note" style="margin:6px 0 0;font-size:12px">Street View coverage varies in Zambia. No imagery? <a href="${sat3d(l)}" target="_blank" rel="noopener" id="sat3d" style="color:var(--g);font-weight:700">Open 3D satellite view</a>. Use the layer button on the map for satellite.</p></div></div></div>${recHTML("Similar homes","Same city, type or price range",recommend({cities:[l.city],types:[l.type],rent:l.rent},3,l.id))}</div>`;
  const m=mkMap("mini",[l.lat,l.lng],15,true);L.marker([l.lat,l.lng]).addTo(m);
  bindPhotoCarousels(app);
  $("#dir").onclick=()=>dirSheet(l);
- $("#enq").onclick=()=>DB.addEnquiry({listingId:id,landlord:l.owner,channel:"whatsapp",tenant:u?.id||null});
- $("#rep").onclick=()=>{location.href=wa(`Hi REZ, I'd like to report a listing that doesn't match: ${l.title} (${l.id}).`)};
+ const enq=$("#enq");if(enq)enq.onclick=()=>DB.addEnquiry({listingId:id,landlord:l.owner,channel:"whatsapp",tenant:u?.id||null});
+ const rep=$("#rep");if(rep)rep.onclick=()=>{const url=wa(`Hi REZ, I'd like to report a listing that doesn't match: ${l.title} (${l.id}).`);if(url)location.href=url};
  $("#sv").onclick=()=>{if(!u)return location.hash="#/account";const s=u.saved||[];DB.updateUser({saved:saved?s.filter(x=>x!==id):[...s,id]});toast(saved?"Removed from saved":"Saved");detail(id)};
  app.querySelectorAll(".ck input").forEach(c=>c.onchange=()=>{const v=[...app.querySelectorAll(".ck input:checked")].map(x=>+x.dataset.i);DB.updateUser({meets:{...(DB.user().meets||{}),[id]:v}});$("#mt").textContent=`You meet ${v.length} of ${l.criteria.length}.`});
  const ab=$("#apply");if(ab)ab.onclick=()=>u?applySheet(l):location.hash="#/account";
@@ -279,8 +281,8 @@ function acceptSheet(a,done){const seen=a.seen==="yes";const min=new Date(DB.now
 // Channel templates from templates.js. Delivery stays off until switched on.
 function msgPreviewSheet(n,a,done){const data=n.data,key=n.key;let ch="in_app";
  const body=()=>{const r=REZ_TPL.render(key,ch,data)||{};return`${r.subject?`<p class="note" style="margin:0"><b>Subject:</b> ${esc(r.subject)}</p>`:""}${r.title?`<b>${esc(r.title)}</b>`:""}<pre class="msgbody">${esc(r.body)}</pre>`};
- sheet(`<h3>${a.tenantView?"Message versions":"Notification created"}</h3><p class="note" style="margin:0">${a.tenantView?"How this message will reach you at launch.":esc(a.name)+" sees this in their REZ inbox now."}</p><div class="tabs mini" id="cht">${REZ_TPL.CHANNELS.map(([k,t])=>`<button class="${k===ch?"on":""}" data-c="${k}">${t}</button>`).join("")}</div>
- <div class="card box msgprev" id="mp">${body()}</div><p class="note" id="dlv">Email, SMS and WhatsApp copies are ready — we send them once delivery is switched on.</p>
+ sheet(`<h3>${a.tenantView?"Message versions":"Notification created"}</h3><p class="note" style="margin:0">${a.tenantView?"The same message, written for each channel.":esc(a.name)+" sees this in their REZ inbox now."}</p><div class="tabs mini" id="cht">${REZ_TPL.CHANNELS.map(([k,t])=>`<button class="${k===ch?"on":""}" data-c="${k}">${t}</button>`).join("")}</div>
+ <div class="card box msgprev" id="mp">${body()}</div>
  ${a.tenantView?"":`<a class="pill pill-green" id="wact" target="_blank" rel="noopener" href="${REZ_TPL.waLink(a.phone,(REZ_TPL.render(key,"whatsapp",data)||{}).body)}">Open WhatsApp chat with ${esc(a.name.split(" ")[0])} (prefilled)</a>`}<button class="pill pill-ghost" id="cx">Done</button>`);
  $("#cht").onclick=e=>{const b=e.target.closest("button");if(!b)return;ch=b.dataset.c;$("#cht").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));$("#mp").innerHTML=body()};
  $("#cx").onclick=()=>{closeSheet();done&&done()};const wl=$("#wact");if(wl)wl.onclick=()=>{closeSheet();done&&done()}}
@@ -407,7 +409,7 @@ function landlord(){const u=DB.user();if(!u){toast("Sign in as a landlord first"
  app.innerHTML=`<div class="fade" style="padding-top:20px"><div class="sechead"><h2>Landlord portal</h2></div>
  <div class="card box profile"><div class="av">${esc(u.name[0]||"?")}</div><div style="flex:1"><h3 style="margin:0">${esc(u.name)}</h3><p class="note" style="margin:2px 0">${esc(u.email)} · ${esc(u.phone||"no phone yet")}</p>
   <p style="margin:6px 0 0"><b>${esc(pl.name)}</b> plan · ${K(pl.price)}/mo  · ${sub?`<span class="st">Paid until ${D(u.subPaidUntil)}</span>`:`<span class="st warn">${u.subPaidUntil?"Expired "+D(u.subPaidUntil):"Not paid yet"}</span>`}</p></div>
-  <div class="btns"><button class="pill pill-green sm" id="paysub">${sub?"Pay next month":"Pay 1 month"} (${K(pl.price)})</button></div></div>
+  <div class="btns"><a class="pill pill-ghost sm" href="#/company/${esc(u.id)}">View public page</a><button class="pill pill-green sm" id="paysub">${sub?"Pay next month":"Pay 1 month"} (${K(pl.price)})</button></div></div>
  <div class="seg" id="plan" style="margin-bottom:14px">${CFG.PLANS.map(p=>`<button class="${p.id===pl.id?"on":""}" data-p="${p.id}">${esc(p.name)} ${K(p.price)}</button>`).join("")}</div>
  <div class="kpis"><div class="card"><small>Total views</small><b>${tv}</b><em>${wk} this week</em></div><div class="card"><small>Enquiries</small><b>${enq.length}</b><em>WhatsApp taps</em></div><div class="card"><small>Applications</small><b>${apps.length}</b><em>${apps.filter(a=>a.status==="Accepted").length} accepted</em></div><div class="card"><small>Active listings</small><b>${act}/${pl.listings>99?"∞":pl.listings}</b><em>${tv?Math.round(100*(enq.length+apps.length)/tv):0}% view→contact</em></div></div>
  ${upgradeHTML(u,pl,mine,tv)}
@@ -508,7 +510,7 @@ function compress(f){return new Promise((res,rej)=>{const r=new FileReader();r.o
 // ---------- Staff / admin (demo role) ----------
 let ATAB="queue";
 function admin(){const u=DB.user();
- if(!isStaff(u))return app.innerHTML=`<div class="card box" style="max-width:480px;margin:30px auto"><h3>REZ staff portal</h3><p class="note">For REZ staff and admins. Sign in with your staff account to continue.</p><button class="pill pill-green" id="sd">Continue as staff</button></div>`,$("#sd").onclick=()=>{DB.staffDemo();toast("Signed in as staff");route()};
+ if(!isStaff(u))return app.innerHTML=`<div class="card box" style="max-width:480px;margin:30px auto"><h3>REZ staff</h3><p class="note">Sign in with your staff account to continue.</p><a class="pill pill-green" href="#/account">Sign in</a></div>`;
  const all=DB.listings(),own=all.filter(l=>!l.sample),pays=DB.payments(),users=DB.users(),U=id=>users.find(x=>x.id===id)||{name:"(unknown)",phone:""};
  const queue=own.filter(l=>l.vstatus==="awaiting_payment"||l.vstatus==="inspection_scheduled");
  const overdue=own.filter(l=>l.status==="expired");
@@ -536,7 +538,7 @@ function admin(){const u=DB.user();
   ${g.experience?`<p class="amsg">“${esc(g.experience)}”</p>`:""}${docList(docs)}
   ${g.status==="rejected"&&g.reviewNote?`<p class="note" style="margin:6px 0;color:#a33">Rejected by ${esc(g.reviewedBy||"REZ")}: ${esc(g.reviewNote)}</p>`:""}${c?`<p class="note" style="margin:6px 0">Certificate <b>${esc(c.no)}</b> · ${esc(cs)} · expires ${D(c.expires)}</p>`:""}
   <div class="btns">${g.status==="pending"?`<button class="pill pill-green sm" data-agok="${a.id}">Approve &amp; issue certificate</button><button class="pill pill-ghost sm" data-agrej="${a.id}">Reject</button>`:g.status==="suspended"?`<button class="pill pill-green sm" data-agok="${a.id}">Reinstate &amp; issue new certificate</button>`:g.status==="approved"?`${c?`<a class="pill pill-ghost sm" href="#/cert/${c.id}">View certificate</a>`:""}${cs!=="valid"?`<button class="pill pill-green sm" data-agcert="${a.id}">Issue new certificate</button>`:""}<button class="pill pill-ghost sm" data-agsus="${a.id}">Suspend</button>`:""}</div>
-  ${cm.length?`<div class="list" style="margin-top:8px">${cm.map(c=>`<div class="it"><small>${esc((DB.listing(c.listingId)||{}).title||"")} · ${K(c.amount)}</small>${c.status==="pending"?`<button class="pill pill-ghost sm" data-cpay="${c.id}">Record payout (mock)</button>`:`<span class="st">Paid · ${esc(c.payoutRef)}</span>`}</div>`).join("")}</div>`:""}</div></div>`}).join("")||"<p class='note'>No inspector applications yet. Share the “Apply as a REZ inspector” page with local estate agents.</p>");
+  ${cm.length?`<div class="list" style="margin-top:8px">${cm.map(c=>`<div class="it"><small>${esc((DB.listing(c.listingId)||{}).title||"")} · ${K(c.amount)}</small>${c.status==="pending"?`<button class="pill pill-ghost sm" data-cpay="${c.id}">Record payout</button>`:`<span class="st">Paid · ${esc(c.payoutRef)}</span>`}</div>`).join("")}</div>`:""}</div></div>`}).join("")||"<p class='note'>No inspector applications yet. Share the “Apply as a REZ inspector” page with local estate agents.</p>");
  if(ATAB==="listings")body=all.map(l=>row(l,`<p class="note" style="margin:6px 0">Verification: ${esc(vstatusLabel(l))}${l.inspection?.inspector?` · inspected by ${esc(l.inspection.inspector)} ${D(l.inspection.date)}`:""}</p>${l.sample?"":`<div class="btns">${l.status==="active"?`<button class="pill pill-ghost sm" data-occ="${l.id}">Mark occupied</button>`:""}${l.vstatus==="verified"&&!l.flagReverify?`<button class="pill pill-ghost sm" data-flag="${l.id}">Flag for re-verification</button>`:""}<button class="pill pill-ghost sm" data-hist="${l.id}">History</button></div>`}`)).join("");
  if(ATAB==="payments")body=`<p class="note">Payments arrive outside the site for now (mobile money etc.). Staff records the <b>transaction ID, amount and timestamp</b> against the reference, and Boaz verifies all three before anything counts as paid.</p><div class="list">${pays.slice().reverse().map(p=>`<div class="it"><div><b>${p.ref}</b> · ${esc(p.purpose)} · ${K(p.amount)} · ${esc(p.method)}<br><small class="note">${esc(U(p.landlord).name)} · created ${D(p.created)}${p.transaction_id?` · txn <b>${esc(p.transaction_id)}</b> · ${K(p.paid_amount)} · ${esc(p.paid_at)} · by ${esc(p.recorded_by)} · Boaz: not yet verified`:""}</small></div>${p.status==="pending"?`<button class="pill pill-green sm" data-rec="${p.id}">Record payment</button>`:`<span class="st">Recorded</span>`}</div>`).join("")||"<p class='note'>No payment references yet.</p>"}</div>`;
  if(ATAB==="overdue")body=`<p class="note">Fee unpaid, so these are hidden. Follow up by WhatsApp, email or a call. If the landlord says it's occupied, mark it occupied: it stays verified in the database.</p>`+(overdue.map(l=>{const o=U(l.owner);return row(l,`<p class="note" style="margin:6px 0">Plan expired ${D(o.subPaidUntil)}</p><div class="btns">${wal(o.phone,`Hi ${o.name}, this is REZ Homes. Your listing "${l.title}" is hidden because this month's fee is unpaid. Is it still available, or is it occupied?`)}<button class="pill pill-ghost sm" data-occ="${l.id}">Landlord says occupied</button><button class="pill pill-ghost sm" data-note="${l.id}">Log follow-up</button></div>`)}).join("")||"<p class='note'>No overdue listings.</p>");
@@ -585,17 +587,15 @@ function inspectSheet(l){const u=DB.user();let photos=[];
 // ---------- Notifications inbox ----------
 function inbox(){const u=DB.user();if(!u)return authView("in");const ns=DB.notifications();
  app.innerHTML=`<div class="fade" style="padding-top:20px"><div class="sechead"><h2>Notifications</h2>${ns.some(n=>!n.read)?`<button class="pill pill-ghost sm" id="mar">Mark all read</button>`:""}</div>
- <p class="note" style="margin:6px 0 14px">In-app now. Email, SMS and WhatsApp follow once delivery is on.</p>
  <div class="nlist">${ns.map(n=>{const d=n.data||{};const act=n.key==="application_accepted_viewing"?`<a class="pill pill-green sm" target="_blank" rel="noopener" href="${REZ_TPL.waLink(d.landlord_phone,`Hi ${d.landlord_name}, thank you for accepting my application for ${d.listing_title}. ${d.viewing_date} works for me to view it.`)}">Confirm viewing on WhatsApp</a><a class="pill pill-ghost sm" target="_blank" rel="noopener" href="${esc(d.directions_url)}">Directions</a>`
   :n.key==="application_accepted_pay"?`<button class="pill pill-green sm" data-pay="${n.id}">Confirm &amp; pay to secure it</button><a class="pill pill-ghost sm" target="_blank" rel="noopener" href="${REZ_TPL.waLink(d.landlord_phone,`Hi ${d.landlord_name}, I'd like to secure ${d.listing_title}. How do I pay the move-in cost of ${d.move_in_total}?`)}">WhatsApp landlord</a>`
   :n.key==="agent_task_assigned"||n.key==="inspector_approved"?`<a class="pill pill-green sm" href="#/agent">Open my tasks</a>`:n.key==="inspector_application_rejected"?`<a class="pill pill-green sm" href="#/agent">Update my application</a>`:n.link?`<a class="pill pill-ghost sm" href="${esc(n.link)}">Open</a>`:"";
-  return`<div class="card notif${n.read?"":" unread"}" data-n="${n.id}"><div class="sechead"><b>${esc(n.title)}</b><small class="note" style="margin:0">${D(n.created)}</small></div><p>${esc(n.body)}</p>${n.key==="application_accepted_pay"?`<p class="note" style="margin:0 0 8px">First come, first served. Payments are not live yet: the button shows what's coming.</p>`:""}<div class="btns">${act}<button class="pill pill-ghost sm" data-ch="${n.id}">Email / SMS / WhatsApp versions</button></div></div>`}).join("")||"<div class='card box'><p class='note' style='margin:0'>No notifications yet. When a landlord accepts your application you'll see it here.</p></div>"}</div></div>`;
+  return`<div class="card notif${n.read?"":" unread"}" data-n="${n.id}"><div class="sechead"><b>${esc(n.title)}</b><small class="note" style="margin:0">${D(n.created)}</small></div><p>${esc(n.body)}</p>${n.key==="application_accepted_pay"?`<p class="note" style="margin:0 0 8px">First come, first served. Confirm with the landlord and pay them directly after you've seen the property.</p>`:""}<div class="btns">${act}<button class="pill pill-ghost sm" data-ch="${n.id}">Email / SMS / WhatsApp versions</button></div></div>`}).join("")||"<div class='card box'><p class='note' style='margin:0'>No notifications yet. When a landlord accepts your application you'll see it here.</p></div>"}</div></div>`;
  const mar=$("#mar");if(mar)mar.onclick=()=>{DB.markAllRead();inbox();route2()};
  app.querySelectorAll(".notif").forEach(c=>c.addEventListener("click",()=>{DB.markRead(c.dataset.n);c.classList.remove("unread");route2()}));
  app.querySelectorAll("[data-ch]").forEach(b=>b.onclick=()=>{const n=ns.find(x=>x.id===b.dataset.ch);const a=DB.applications().find(x=>x.id===n.appId)||{name:u.name,phone:u.phone};msgPreviewSheet(n,{...a,tenantView:true})});
  app.querySelectorAll("[data-pay]").forEach(b=>b.onclick=()=>{const n=ns.find(x=>x.id===b.dataset.pay),d=n.data;
-  sheet(`<div class="soon"><i style="background:var(--g)">🔒</i><h3>Secure ${esc(d.listing_title)}</h3><p class="note">Move-in cost ${esc(d.move_in_total)} (${esc(d.upfront)} month(s) rent + deposit).</p><p class="note">We'll send payment details after you submit. For now, confirm with the landlord directly. REZ never asks you to pay a stranger: only pay once you have seen the property and the landlord's details match.</p></div>
-  <div class="paygrid">${CFG.PAY_METHODS.map(m=>`<button class="paybtn" disabled style="--pc:${m.color};opacity:.55"><i>${m.icon}</i>${esc(m.name)}</button>`).join("")}</div>
+  sheet(`<h3>Secure ${esc(d.listing_title)}</h3><p class="note">Move-in cost ${esc(d.move_in_total)} (${esc(d.upfront)} month(s) rent + deposit).</p><p class="note">Confirm with the landlord. Pay only after you have seen the property and the landlord's details match.</p>
   <a class="pill pill-green" target="_blank" rel="noopener" href="${REZ_TPL.waLink(d.landlord_phone,`Hi ${d.landlord_name}, I'd like to secure ${d.listing_title}.`)}">Confirm with the landlord on WhatsApp</a><button class="pill pill-ghost" id="cx">Close</button>`);$("#cx").onclick=closeSheet})}
 const route2=()=>{const u=DB.user(),n=u?DB.unread():0,bn=$("#bellN"),bl=$("#bell");if(bl)bl.style.display=u?"":"none";if(bn){bn.textContent=n||"";bn.style.display=n?"":"none"}};
 
@@ -630,7 +630,7 @@ function agentView(){const u=DB.user();
  if(AGTAB==="mine")body=mine.map(x=>tcard(x,x.t.status==="accepted"?`<button class="pill pill-green sm" data-rep="${x.t.id}">Submit inspection report</button>`:"")).join("")||"<p class='note'>No tasks yet. Accept one from Tasks near me.</p>";
  if(AGTAB==="earn")body=`<div class="kpis"><div class="card"><small>Pending inspections</small><b>${cm.filter(c=>c.status==="pending").length}</b><em>awaiting payout</em></div><div class="card"><small>Paid out</small><b>${cm.filter(c=>c.status==="paid").length}</b><em>inspections</em></div></div>
   <p class="note" style="margin:0 0 10px">Commission varies with property size, distance and time on site. Payouts are confirmed by the REZ team.</p>
-  <div class="list">${cm.slice().reverse().map(c=>{const l=L(c.listingId)||{title:"(listing)"};return`<div class="it"><div><b>${esc(l.title)}</b><br><small class="note">Approved ${D(c.created)}${c.payoutRef?` · payout ref ${esc(c.payoutRef)} (mock)`:""}</small></div><span class="st ${c.status==="pending"?"warn":""}">${K(c.amount)} · ${c.status==="pending"?"Pending":"Paid"}</span></div>`}).join("")||"<p class='note'>No earnings yet. Each approved inspection report adds a commission here.</p>"}</div>`;
+  <div class="list">${cm.slice().reverse().map(c=>{const l=L(c.listingId)||{title:"(listing)"};return`<div class="it"><div><b>${esc(l.title)}</b><br><small class="note">Approved ${D(c.created)}${c.payoutRef?` · payout ref ${esc(c.payoutRef)}`:""}</small></div><span class="st ${c.status==="pending"?"warn":""}">${K(c.amount)} · ${c.status==="pending"?"Pending":"Paid"}</span></div>`}).join("")||"<p class='note'>No earnings yet. Each approved inspection report adds a commission here.</p>"}</div>`;
  app.innerHTML=`<div class="fade" style="padding-top:20px"><div class="sechead"><h2>REZ Inspector portal</h2></div>
  <div class="card box profile"><div class="av">${esc(initials(u.name))}</div><div style="flex:1"><h3 style="margin:0">${esc(u.name)}</h3><p class="note" style="margin:2px 0">${esc(u.phone||"no phone")} · ${esc((me.areas||[]).join(", ")||me.baseCity)}${me.areaText?` · ${esc(me.areaText)}`:""}</p><p style="margin:4px 0 0">${ok?'<span class="st">✓ REZ Certified Inspector</span>':me.status==="suspended"?'<span class="st bad">Suspended</span>':me.status==="rejected"?'<span class="st bad">Changes needed</span>':me.status==="approved"?`<span class="st bad">Certificate ${esc(cst)}</span>`:'<span class="st warn">Waiting for REZ approval</span>'} <small class="note">Agreement ${esc(me.agreementVersion||"")} ticked ${D(me.agreementAt)}</small></p>
  ${cert&&cst!=="none"?`<p class="note" style="margin:4px 0 0">Inspector ID <b>${esc(cert.no)}</b> · ${esc(CERTSTL[cst])} until ${D(cert.expires)}</p>`:""}</div>
@@ -765,6 +765,8 @@ function certView(id){const c=DB.certificate(id);
 function setupWhatsAppFloatBehaviour(){
   const button=document.getElementById("wafloat");
   if(!button||button.dataset.scrollBound)return;
+  if(!waReady()){button.classList.add("hide");button.removeAttribute("href");return}
+  button.href=wa("Hi REZ Homes customer service, I need help with ");
   button.dataset.scrollBound="1";
   let lastY=window.scrollY, ticking=false;
   const update=()=>{
@@ -780,10 +782,59 @@ function setupWhatsAppFloatBehaviour(){
 }
 setupWhatsAppFloatBehaviour();
 
+// ---------- Firm profile (#/company/:id) ----------
+/** Digits worth showing or linking. Masked and all-zero numbers are omitted. */
+function contactDigits(s){const raw=String(s||"").trim();if(!raw||/x/i.test(raw))return"";let d=raw.replace(/\D/g,"");if(d.startsWith("0"))d="260"+d.slice(1);if(!d||/^2600{9}$/.test(d)||/^0+$/.test(d))return"";return d}
+/** Cities the firm actually serves: saved list, otherwise the cities on their live listings. */
+function servedCities(c,list){if(c.cities&&c.cities.length)return c.cities;return [...new Set(list.map(l=>l.city).filter(Boolean))]}
+/** Public agency page. Optional fields render only when set. Counts come from live listings. */
+function companyView(id){
+ const c=DB.company(id);
+ if(!c){app.innerHTML=`<div class="card box" style="margin-top:24px"><h2>This page isn't available</h2><p class="note"><a href="#/" style="color:var(--g);font-weight:700">Browse homes</a></p></div>`;return}
+ const list=DB.companyListings(c.ownerId);
+ const cities=servedCities(c,list);
+ const verifiedN=list.filter(vvv).length;
+ const stats=[];
+ if(list.length)stats.push([String(list.length),list.length===1?"Listing":"Listings"]);
+ if(verifiedN)stats.push([String(verifiedN),"Verified"]);
+ if(cities.length)stats.push([String(cities.length),cities.length===1?"City":"Cities"]);
+ const photo=c.logo||((list.find(l=>l.photos&&l.photos[0])||{}).photos||[])[0]||"";
+ const about=String(c.about||"").trim();
+ const tagline=String(c.tagline||"").trim();
+ const reg=[c.registration_body,c.registration_number].map(s=>String(s||"").trim()).filter(Boolean);
+ const waNum=contactDigits(c.whatsapp),phoneNum=contactDigits(c.phone);
+ const email=String(c.email||"").trim(),emailOk=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+ const contacts=[];
+ if(waNum)contacts.push(`<a class="pill pill-gold" target="_blank" rel="noopener" href="https://wa.me/${waNum}">WhatsApp</a>`);
+ if(phoneNum)contacts.push(`<a class="pill pill-ghost" href="tel:+${phoneNum}">Call</a>`);
+ if(emailOk)contacts.push(`<a class="pill pill-ghost" href="mailto:${esc(email)}">Email</a>`);
+ const lines=[];if(waNum)lines.push("+"+waNum);if(phoneNum&&phoneNum!==waNum)lines.push("+"+phoneNum);if(emailOk)lines.push(email);
+ const side=reg.length?`<ul class="check-card"><li>${esc(reg.join(" · "))}</li></ul>`:"";
+ const aboutHtml=about?`<div class="narrative"><h2>About</h2><p>${esc(about).replace(/\n/g,"<br>")}</p></div>`:"";
+ const how=aboutHtml&&side?`<section class="how-grid">${aboutHtml}${side}</section>`:aboutHtml?`<section class="how-single">${aboutHtml}</section>`:side?`<section class="how-single">${side}</section>`:"";
+ app.innerHTML=`<article class="rez-company fade">
+  <div class="hero-split">
+   <div class="visual">${photo?`<img src="${esc(photo)}" alt="">`:`<div class="visual-fill" aria-hidden="true"></div>`}</div>
+   <div class="statement">
+    ${cities.length?`<p class="eyebrow">${esc(cities.slice(0,3).join(" · "))}</p>`:""}
+    <h1>${esc(c.display_name)}</h1>
+    ${tagline?`<p class="lead">${esc(tagline)}</p>`:""}
+   </div>
+  </div>
+  ${stats.length?`<div class="trust-strip">${stats.map(([n,lab])=>`<div class="stat"><b>${esc(n)}</b><small>${esc(lab)}</small></div>`).join("")}</div>`:""}
+  ${how}
+  ${verifiedN?`<section class="verify-note"><h2>Verified listings</h2><p>Verified means a REZ inspector checked the photos and the details. The badge stays while that check is current.</p></section>`:""}
+  ${cities.length?`<section class="cities"><h2>Cities</h2><div class="city-row">${cities.map(city=>`<span class="city-chip">${esc(city)}</span>`).join("")}</div></section>`:""}
+  ${list.length?`<section class="firm-listings"><h2>Listings</h2><div class="grid">${list.map(card).join("")}</div></section>`:""}
+  ${contacts.length?`<section class="cta-band"><h2>Contact ${esc(c.display_name)}</h2>${lines.length?`<p>${lines.map(esc).join(" · ")}</p>`:""}<div class="btns">${contacts.join("")}</div></section>`:""}
+ </article>`;
+ bindPhotoCarousels(app);
+}
+
 // ---------- Router ----------
 function route(keep){if(keep!==true)closeSheet();const h=location.hash.replace(/^#\/?/,""),[r,id]=h.split("/");
  if(h==="search"||h==="listings"||h==="pricing"||h==="contact"||h==="agents"){if(!$("#car")){clearMaps();home()}document.getElementById(h==="search"?"search":h)?.scrollIntoView();return}
- clearMaps();if(keep!==true)scrollTo(0,0);({"":home,map:mapView,saved:savedView,account,landlord,admin,inbox,agent:agentView,"agent-info":agentInfoPage,cert:()=>certView(id),l:()=>detail(id)}[r]||home)();
+ clearMaps();if(keep!==true)scrollTo(0,0);({"":home,map:mapView,saved:savedView,account,landlord,admin,inbox,agent:agentView,"agent-info":agentInfoPage,company:()=>companyView(id),cert:()=>certView(id),l:()=>detail(id)}[r]||home)();
  document.querySelectorAll(".bnav a,.dnav a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#/"+(r||"")));
  const u=DB.user(),pb=$("#pbtn");if(pb){pb.textContent=u?(u.name||"?")[0].toUpperCase():"☺";pb.href=u?(isStaff(u)?"#/admin":u.role==="landlord"?"#/landlord":u.role==="agent"?"#/agent":"#/account"):"#/account";pb.title=u?"My profile":"Sign in"}
  route2();

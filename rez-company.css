@@ -1,0 +1,171 @@
+/* Firm profile (#/company/:id). φ split and spacing from the Hiram sheet.
+   REZ green/gold only — do not introduce VH blue. Class is .rez-company. */
+
+.rez-company{
+  --rez-green: var(--g);
+  --rez-green-soft: var(--g2);
+  --rez-gold: var(--gold);
+  --rez-ink: var(--ink);
+  --rez-muted: var(--mut);
+  --rez-white: #fff;
+  --rez-radius: 24px;
+  --sp-1: 8px;
+  --sp-2: 13px;
+  --sp-3: 21px;
+  --sp-4: 34px;
+  --sp-5: 55px;
+  --sp-6: 89px;
+  --rez-split-major: 61.8%;
+  --rez-split-minor: 38.2%;
+  --rez-copy-max: 34ch;
+  padding: var(--sp-3) 0 var(--sp-2);
+}
+.rez-company .hero-split{
+  display: grid;
+  grid-template-columns: var(--rez-split-major) var(--rez-split-minor);
+  gap: var(--sp-3);
+  min-height: 420px;
+  align-items: stretch;
+}
+.rez-company .hero-split .visual{
+  position: relative;
+  border-radius: 28px;
+  overflow: hidden;
+  background: var(--rez-green);
+  min-height: 280px;
+}
+.rez-company .hero-split .visual img{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.rez-company .visual-fill{
+  min-height: 280px;
+  height: 100%;
+  background: linear-gradient(160deg, var(--rez-green), #064e2c 72%, var(--rez-gold));
+}
+.rez-company .hero-split .statement{
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--sp-4);
+  background: var(--rez-ink);
+  color: var(--rez-white);
+  border-radius: 28px;
+}
+.rez-company .hero-split .statement .eyebrow{
+  color: var(--rez-gold);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0;
+}
+.rez-company .statement h1{
+  font-size: 36px;
+  line-height: 1.05;
+  letter-spacing: -1.2px;
+  color: #fff;
+  margin: 8px 0 10px;
+}
+.rez-company .statement .lead{
+  color: #b9c6bf;
+  max-width: var(--rez-copy-max);
+  font-size: 16px;
+  margin: 0;
+}
+.rez-company .trust-strip{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0;
+}
+.rez-company .trust-strip .stat{
+  background: var(--rez-white);
+  border-radius: 20px;
+  padding: var(--sp-3);
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.rez-company .trust-strip .stat b{
+  display: block;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: var(--rez-green);
+}
+.rez-company .trust-strip .stat small{
+  color: var(--rez-muted);
+  font-weight: 600;
+}
+.rez-company .how-grid{
+  display: grid;
+  grid-template-columns: var(--rez-split-major) var(--rez-split-minor);
+  gap: var(--sp-3);
+  align-items: start;
+  margin: var(--sp-4) 0;
+}
+.rez-company .how-single{margin: var(--sp-4) 0}
+.rez-company .narrative h2,
+.rez-company .verify-note h2,
+.rez-company .cities h2,
+.rez-company .firm-listings h2{margin-bottom: var(--sp-2)}
+.rez-company .narrative p,
+.rez-company .verify-note p{
+  color: var(--rez-muted);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 62ch;
+}
+.rez-company .check-card{
+  background: var(--rez-green-soft);
+  border-radius: var(--rez-radius);
+  padding: var(--sp-3);
+  margin: 0;
+}
+.rez-company .check-card li{
+  list-style: none;
+  padding: 10px 0;
+  border-top: 1px solid rgba(11,138,74,.15);
+  font-weight: 600;
+}
+.rez-company .check-card li:first-child{border-top: 0}
+.rez-company .check-card li::before{
+  content: "✓ ";
+  color: var(--rez-green);
+  font-weight: 800;
+}
+.rez-company .verify-note,
+.rez-company .cities,
+.rez-company .firm-listings{margin: var(--sp-4) 0}
+.rez-company .city-row{display: flex; flex-wrap: wrap; gap: var(--sp-1)}
+.rez-company .city-chip{
+  background: #fff;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--rez-green);
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.rez-company .cta-band{
+  background: var(--rez-ink);
+  color: #fff;
+  border-radius: var(--rez-radius);
+  padding: var(--sp-4);
+  text-align: center;
+  margin: var(--sp-5) 0 var(--sp-4);
+}
+.rez-company .cta-band h2{color: #fff}
+.rez-company .cta-band p{color: #b9c6bf; margin: 8px 0 20px}
+.rez-company .cta-band .btns{justify-content: center}
+
+@media (max-width: 759px){
+  .rez-company .hero-split,
+  .rez-company .how-grid{grid-template-columns: 1fr}
+  .rez-company .trust-strip{grid-template-columns: 1fr}
+  .rez-company .hero-split .statement{min-height: auto; padding: var(--sp-3)}
+  .rez-company .statement h1{font-size: 32px}
+}
