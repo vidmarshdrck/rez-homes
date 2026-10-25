@@ -24,7 +24,7 @@ function ensureTestSeed(){
  if(get("seed_v61",false))return;
  const DAY=864e5,n=now();
  const mk=(id,name,email,password,extra)=>({id,name,email,password,role:extra.role||"tenant",roles:extra.roles||["tenant"],phone:extra.phone||"+260970000000",google:false,plan:extra.plan||"starter",subPaidUntil:extra.subPaidUntil||0,saved:[],trips:[],meets:{},created:n-30*DAY,...extra});
- let us=users();
+ let us=get("users",[]);
  const byEmail=e=>us.find(u=>u.email===e);
  if(!byEmail("tenant@rez.test"))us.push(mk("u-tenant","Thandi Mwila","tenant@rez.test","rez-test-1",{role:"tenant",roles:["tenant"],profile:{occupation:"Nurse",employer:"UTH",income:"K8,000",people:2}}));
  if(!byEmail("landlord@rez.test"))us.push(mk("u-landlord","Chanda Banda","landlord@rez.test","rez-test-1",{role:"landlord",roles:["tenant","landlord"],plan:"landlord",subPaidUntil:n+25*DAY,phone:"+260971111111"}));

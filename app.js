@@ -132,19 +132,19 @@ function bindBoost(root,onChange){const el=root&&root.querySelector(".bw");if(!e
 function packageBoostLine(planId,weeks,pct=0){const x=DB.packageBoostQuote(planId,weeks,pct);const boostPart=x.total<x.was?`${K(x.weekRate)} (−${x.pct}%)`:`${K(x.weekRate)}`;
  return{...x,html:`${K(x.base)} + ${x.weeks} week${x.weeks>1?"s":""} × ${boostPart} = <b>${K(x.estimated)}</b>`,text:`${K(x.base)} + ${x.weeks} weeks × ${K(x.weekRate)} = ${K(x.estimated)}`}}
 // v5: "Apply for a discount". One offer per listing, held for BOOST_DISCOUNT_OFFER_HOURS, so re-ticking or reloading shows the same offer.
-function boostSheet(l){const band=DB.discountBand();let offer=DB.boostOffer(l.id),on=!!offer;const paused="Discount offers are paused while boost demand is high. Check again later.";
+function boostSheet(l){const allowDisc=!!CFG.BOOST_DISCOUNT_ENABLED;const band=allowDisc?DB.discountBand():{off:true};let offer=allowDisc?DB.boostOffer(l.id):null,on=!!offer;const paused="Discount offers are paused while boost demand is high. Check again later.";
  sheet(`<h3>Boost: ${esc(l.title)}</h3><p class="note" style="margin:0">Shown first in search with a gold ★ Featured badge. Pick how many weeks.</p>${boostWidget(BOOST.recommendedWeeks)}
- <div class="card box disc" id="bdbox"><label class="ck"><input type="checkbox" id="bdisc" ${on?"checked":""} ${band.off&&!offer?"disabled":""}> Apply for a discount </label>
+ ${allowDisc?`<div class="card box disc" id="bdbox"><label class="ck"><input type="checkbox" id="bdisc" ${on?"checked":""} ${band.off&&!offer?"disabled":""}> Apply for a discount </label>
   <p class="note" id="bdnote" style="margin:0">${band.off&&!offer?paused:`Tick to see your discount offer: ${band.min}% to ${band.max}% off, depending on current demand. One offer per listing, held for ${CFG.BOOST_DISCOUNT_OFFER_HOURS} hours. A boost never costs less than ${K(CFG.BOOST_PRICE_FLOOR_PER_WEEK)} a week.`}</p>
-  <div id="boffer" class="offer hide"></div></div>
+  <div id="boffer" class="offer hide"></div></div>`:""}
  <p class="note" style="margin:0" id="bwend"></p><button class="pill pill-gold" id="bwgo">Continue to payment</button><button class="pill pill-ghost" id="cx">Cancel</button>`);
  const q=w=>on&&offer?DB.boostQuote(w,offer.pct,offer):DB.boostQuote(w,0);
  const paint=w=>{$("#bwend").textContent=`Featured until about ${D(Math.max(DB.now(),l.boostUntil||0)+w*7*DB.DAY)}.`;const x=q(w);
   $("#sheet .bwtotal").innerHTML=x.total<x.was?`<s class="was">${K(x.was)}</s> ${K(x.total)}`:K(x.total);
-  const bo=$("#boffer");if(!(on&&offer))return bo.classList.add("hide");bo.classList.remove("hide");
+  const bo=$("#boffer");if(!bo)return;if(!(on&&offer))return bo.classList.add("hide");bo.classList.remove("hide");
   bo.innerHTML=`<div class="sechead"><b>Your discount offer</b><span class="offpct">${offer.pct}% off</span></div><p class="offline">Was <s class="was">${K(x.was)}</s> · now <b class="now">${K(x.total)}</b> for ${w} week${w>1?"s":""} · you save ${K(x.saved)}</p><small class="note">${x.floorApplied?`Capped at the ${K(offer.floorPerWeek)}/week minimum price. `:""}Held for this listing until ${esc(new Date(offer.expires).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))}.</small>`};
  const gw=bindBoost($("#sheet"),paint);paint(gw());
- const cb=$("#bdisc");cb.onchange=()=>{if(cb.checked){try{offer=DB.getBoostOffer(l.id)}catch(e){cb.checked=false;return toast(e.message)}
+ const cb=$("#bdisc");if(cb)cb.onchange=()=>{if(cb.checked){try{offer=DB.getBoostOffer(l.id)}catch(e){cb.checked=false;return toast(e.message)}
    if(!offer){cb.checked=false;cb.disabled=true;$("#bdnote").textContent=paused;on=false}else on=true}else on=false;paint(gw())};
  $("#cx").onclick=closeSheet;
  $("#bwgo").onclick=()=>{const w=gw(),x=q(w),d=on&&offer&&x.total<x.was?{offerId:offer.id,pct:offer.pct,was:x.was,floorApplied:x.floorApplied}:null;
@@ -298,33 +298,88 @@ function savedView(){const u=DB.user(),trips=u?u.trips||[]:JSON.parse(localStora
  <div class="card box"><h3>Saved homes</h3>${u?`<div class="grid">${sv.map(card).join("")||"<p class='note'>Nothing saved yet.</p>"}</div>`:"<p class='note'><a href='#/account' style='color:var(--g);font-weight:700'>Sign in</a> to save homes.</p>"}</div></div>`}
 
 // ---------- Account / profile ----------
-let AUTHROLE="tenant";
-/** Account home: everyone starts as a tenant; apply from here to become a landlord or agent. */
+const ACCT_ROLES=["tenant","landlord","agent"];
+const ACCT_LABEL={tenant:"Tenant",landlord:"Landlord",agent:"Agent"};
+/** Hash path plus ?role= query. `#/account?role=landlord` stays one account shell. */
+function hashParts(){
+ const raw=(location.hash||"").replace(/^#\/?/,"");
+ const i=raw.indexOf("?");
+ const path=i<0?raw:raw.slice(0,i);
+ const params=new URLSearchParams(i<0?"":raw.slice(i+1));
+ const bits=path.split("/");
+ return {path,r:bits[0]||"",id:bits[1]||"",params};
+}
+/** A role is held only after approval (or a seeded approved profile). Pending apps do not count. */
+function accountRoleHeld(u,kind){
+ if(!u||isStaff(u))return false;
+ if(kind==="tenant")return true;
+ const roles=u.roles||[];
+ if(kind==="landlord")return roles.includes("landlord");
+ if(kind==="agent")return roles.includes("agent")||!!(u.agent&&u.agent.status==="approved");
+ return false;
+}
+function roleAppOpen(u,kind){
+ const a=DB.latestRoleApp(kind);
+ if(a&&(a.status==="submitted"||a.status==="under_review"))return true;
+ return kind==="agent"&&!!(u.agent&&u.agent.status==="pending");
+}
+/** Picks ?role= when it is held, otherwise the last role this person used, otherwise tenant. */
+function resolveAccountRole(u){
+ const held=ACCT_ROLES.filter(k=>accountRoleHeld(u,k));
+ const requested=(hashParts().params.get("role")||"").toLowerCase();
+ const role=held.includes(requested)?requested:(held.includes(u.lastRole)?u.lastRole:"tenant");
+ return {held,role};
+}
+/** Account home: one dashboard. Extra roles appear in the text toggle only once approved. */
 function account(){const u=DB.user();if(!u)return authView("in");
- const apps=DB.applications().filter(a=>a.tenant===u.id);
- const llApp=DB.latestRoleApp("landlord"), agApp=DB.latestRoleApp("agent");
- const roles=new Set([u.role,...(u.roles||["tenant"])]);
- const statusLine=a=>!a?"Not applied":a.status==="submitted"?"Submitted — we review and approve or decline":a.status==="under_review"?"Under review":a.status==="approved"?"Approved":a.status==="declined"?`Declined${a.reviewNote?" — "+a.reviewNote:""}`:esc(a.status);
- app.innerHTML=`<div class="fade" style="padding-top:20px"><div class="sechead"><h2>Hi, ${esc(u.name.split(" ")[0])}</h2><button class="pill pill-ghost sm" id="so">Sign out</button></div>
- <div class="card box"><h3>Your account</h3><p>${esc(u.email)}${u.google?" · Google":""}</p>
- <form class="f" id="pf" style="margin:10px 0"><input name="phone" placeholder="Phone / WhatsApp (e.g. 097...)" value="${esc(u.phone||"")}"><button class="pill pill-ghost sm">Save phone</button></form>
- <p class="note" style="margin:0">You can rent and apply for homes with this account. Become a landlord or agent when you're ready.</p></div>
- ${tenantProfileHTML(u)}
- <div class="card box"><h3>Become a landlord</h3>
-  <p class="note">${statusLine(llApp)}</p>
-  ${roles.has("landlord")?`<a class="pill pill-gold" href="#/landlord">Open landlord portal</a>`:`<button class="pill pill-gold" id="applyLL">Apply as landlord</button>`}</div>
- <div class="card box"><h3>Become an agent</h3>
-  <p class="note">${statusLine(agApp)}</p>
-  ${roles.has("agent")?`<a class="pill pill-gold" href="#/agent">Open agent tasks</a>`:`<button class="pill pill-gold" id="applyAG">Apply as agent</button>`}
-  <a class="pill pill-ghost sm" href="#/agent-info" style="margin-top:8px">How REZ agents work</a></div>
- <div class="card box"><div class="sechead"><h3>Notifications</h3><a class="pill pill-ghost sm" href="#/inbox">Open inbox${DB.unread()?` (${DB.unread()} new)`:""}</a></div></div>
- <div class="card box"><h3>My applications</h3><div class="list">${apps.map(a=>`<div class="it"><a href="#/l/${a.listingId}">${esc(a.listingTitle)}<br><small class="note">Move-in ${esc(a.moveIn)}</small></a><span class="st">${esc(a.status)}</span></div>`).join("")||"<p class='note'>No applications yet.</p>"}</div></div>
- <div class="card box"><h3>Saved</h3><p class="note">${(u.saved||[]).length} homes · ${(u.trips||[]).length} trips. <a href="#/saved" style="color:var(--g);font-weight:700">Open Saved</a></p></div></div>`;
+ if(isStaff(u)){location.hash="#/admin";return}
+ const {held,role}=resolveAccountRole(u);
+ const desired="#/account?role="+role;
+ if(location.hash!==desired)history.replaceState(null,"",desired);
+ if(u.lastRole!==role)DB.updateUser({lastRole:role});
+ const lines=[];
+ if(!accountRoleHeld(u,"landlord")){
+  const a=DB.latestRoleApp("landlord");
+  if(a&&(a.status==="submitted"||a.status==="under_review"))lines.push("Landlord application under review");
+  else if(a&&a.status==="declined")lines.push("Landlord application declined"+(a.reviewNote?" — "+a.reviewNote:""));
+ }
+ if(!accountRoleHeld(u,"agent")){
+  const a=DB.latestRoleApp("agent");
+  if(a&&(a.status==="submitted"||a.status==="under_review"))lines.push("Agent application under review");
+  else if(u.agent&&u.agent.status==="pending")lines.push("Agent application under review");
+  else if(a&&a.status==="declined")lines.push("Agent application declined"+(a.reviewNote?" — "+a.reviewNote:""));
+  else if(u.agent&&u.agent.status==="rejected")lines.push("Agent application declined"+(u.agent.reviewNote?" — "+u.agent.reviewNote:""));
+ }
+ const quiet=[];
+ if(!accountRoleHeld(u,"landlord")&&!roleAppOpen(u,"landlord"))quiet.push(`<button type="button" class="role-quiet" id="applyLL">List a property</button>`);
+ if(!accountRoleHeld(u,"agent")&&!roleAppOpen(u,"agent"))quiet.push(`<button type="button" class="role-quiet" id="applyAG">Inspect for REZ</button>`);
+ const toggle=held.length>1?`<nav class="role-toggle${held.length===3?" is-three":""}" aria-label="Account role">${held.map((k,i)=>`${i?`<span class="role-dot" aria-hidden="true">·</span>`:""}<button type="button" class="role-word${k===role?" on":""}" data-role="${k}"${k===role?` aria-current="page"`:""}>${ACCT_LABEL[k]}</button>`).join("")}</nav>`:"";
+ app.innerHTML=`<div class="fade acct" style="padding-top:20px"><div class="sechead"><h2>Hi, ${esc((u.name||"there").split(" ")[0])}</h2><button type="button" class="acct-signout" id="so">Sign out</button></div>
+ ${lines.length?`<div class="role-status">${lines.map(t=>`<p class="role-pending">${esc(t)}</p>`).join("")}</div>`:""}
+ ${quiet.length?`<div class="role-apply">${quiet.join("")}</div>`:""}
+ ${toggle}
+ <div id="rolepanel"></div></div>`;
  $("#so").onclick=()=>{DB.signOut();toast("Signed out");route()};
- bindTenantProfile();
- const pf=$("#pf");if(pf)pf.onsubmit=e=>{e.preventDefault();DB.updateUser({phone:new FormData(pf).get("phone")});toast("Saved")};
+ const tog=$(".role-toggle");if(tog)tog.onclick=e=>{const b=e.target.closest(".role-word");if(!b)return;const next=b.dataset.role;if(!held.includes(next)||next===role)return;DB.updateUser({lastRole:next});location.hash="#/account?role="+next};
  const aLL=$("#applyLL");if(aLL)aLL.onclick=()=>roleApplicationSheet("landlord");
  const aAG=$("#applyAG");if(aAG)aAG.onclick=()=>roleApplicationSheet("agent");
+ if(role==="landlord")landlord();
+ else if(role==="agent")agentView();
+ else renderTenantPanel(DB.user());
+}
+/** Tenant panel: about, applications, saved, notifications. */
+function renderTenantPanel(u){
+ const apps=DB.applications().filter(a=>a.tenant===u.id);
+ $("#rolepanel").innerHTML=`<div class="role-panel">
+ <div class="card box"><h3>Your account</h3><p>${esc(u.email)}${u.google?" · Google":""}</p>
+ <form class="f" id="pf" style="margin:10px 0"><input name="phone" placeholder="Phone / WhatsApp (e.g. 097...)" value="${esc(u.phone||"")}"><button class="pill pill-ghost sm">Save phone</button></form></div>
+ ${tenantProfileHTML(u)}
+ <div class="card box"><h3>My applications</h3><div class="list">${apps.map(a=>`<div class="it"><a href="#/l/${a.listingId}">${esc(a.listingTitle)}<br><small class="note">Move-in ${esc(a.moveIn)}</small></a><span class="st">${esc(a.status)}</span></div>`).join("")||"<p class='note'>No applications yet.</p>"}</div></div>
+ <div class="card box"><h3>Saved</h3><p class="note">${(u.saved||[]).length} homes · ${(u.trips||[]).length} trips. <a href="#/saved" style="color:var(--g);font-weight:700">Open Saved</a></p></div>
+ <div class="card box"><div class="sechead"><h3>Notifications</h3><a class="pill pill-ghost sm" href="#/inbox">Open inbox${DB.unread()?` (${DB.unread()} new)`:""}</a></div></div>
+ </div>`;
+ bindTenantProfile();
+ const pf=$("#pf");if(pf)pf.onsubmit=e=>{e.preventDefault();DB.updateUser({phone:new FormData(pf).get("phone")});toast("Saved")};
 }
 
 /** Collects ID and documents for a landlord or agent application (file names only — never uploaded to a public repo). */
@@ -396,17 +451,21 @@ function authView(mode){
 const daysListed=l=>l.verifiedAt||l.created?Math.max(0,Math.floor((DB.now()-(l.verifiedAt||l.created))/DB.DAY)):0;
 function vstepper(l){if(l.vstatus==="rejected")return`<div class="steps"><span class="s bad">✕ Rejected</span></div>`;const i=VSTEPS.findIndex(s=>s[0]===l.vstatus);
  return`<div class="steps">${VSTEPS.map((s,j)=>`<span class="s${j<i?" done":j===i?" cur":""}">${j<i?"✓ ":""}${s[1]}</span>`).join("")}</div>`}
-/** Renders the landlord portal: plan, listings and applicant actions. */
-function landlord(){const u=DB.user();if(!u){toast("Sign in as a landlord first");return authView("up")}
- if(isStaff(u))return location.hash="#/admin";
- if(u.role!=="landlord")return app.innerHTML=`<div class="card box" style="margin-top:20px"><h3>Landlord portal</h3><p class="note">Your account is set to Tenant.</p><button class="pill pill-gold" id="sw">Switch to landlord</button></div>`,$("#sw").onclick=()=>{DB.updateUser({role:"landlord"});landlord()};
+/** Renders the landlord panel inside the account shell: plan, listings and applicant actions. */
+function landlord(){const u=DB.user();
+ const root=$("#rolepanel");
+ if(!u){location.hash="#/account";return}
+ if(isStaff(u)){location.hash="#/admin";return}
+ if(!root){location.hash="#/account?role=landlord";return}
+ if(!accountRoleHeld(u,"landlord"))return;
  const mine=DB.listings().filter(l=>l.owner===u.id),apps=DB.applications().filter(a=>a.landlord===u.id),enq=DB.enquiries().filter(e=>e.landlord===u.id),pl=DB.plan(u),sub=DB.subActive(u);
  const tv=mine.reduce((a,l)=>a+l.views,0),act=mine.filter(l=>l.status==="active").length;
  const wk=DB.viewlog().filter(v=>mine.some(l=>l.id===v.id)&&v.at>DB.now()-7*DB.DAY).length;
  const payments=DB.payments().filter(p=>p.landlord===u.id);
- app.innerHTML=`<div class="fade" style="padding-top:20px"><div class="sechead"><h2>Landlord portal</h2></div>
+ root.innerHTML=`<div class="role-panel">
  <div class="card box profile"><div class="av">${esc(u.name[0]||"?")}</div><div style="flex:1"><h3 style="margin:0">${esc(u.name)}</h3><p class="note" style="margin:2px 0">${esc(u.email)} · ${esc(u.phone||"no phone yet")}</p>
-  <p style="margin:6px 0 0"><b>${esc(pl.name)}</b> plan · ${K(pl.price)}/mo  · ${sub?`<span class="st">Paid until ${D(u.subPaidUntil)}</span>`:`<span class="st warn">${u.subPaidUntil?"Expired "+D(u.subPaidUntil):"Not paid yet"}</span>`}</p></div>
+  <p style="margin:6px 0 0"><b>${esc(pl.name)}</b> plan · ${K(pl.price)}/mo  · ${sub?`<span class="st">Paid until ${D(u.subPaidUntil)}</span>`:`<span class="st warn">${u.subPaidUntil?"Expired "+D(u.subPaidUntil):"Not paid yet"}</span>`}</p>
+  <p class="acct-public-row"><a class="acct-public" href="#/company/${esc(u.id)}">View public page</a></p></div>
   <div class="btns"><button class="pill pill-green sm" id="paysub">${sub?"Pay next month":"Pay 1 month"} (${K(pl.price)})</button></div></div>
  <div class="seg" id="plan" style="margin-bottom:14px">${CFG.PLANS.map(p=>`<button class="${p.id===pl.id?"on":""}" data-p="${p.id}">${esc(p.name)} ${K(p.price)}</button>`).join("")}</div>
  <div class="kpis"><div class="card"><small>Total views</small><b>${tv}</b><em>${wk} this week</em></div><div class="card"><small>Enquiries</small><b>${enq.length}</b><em>WhatsApp taps</em></div><div class="card"><small>Applications</small><b>${apps.length}</b><em>${apps.filter(a=>a.status==="Accepted").length} accepted</em></div><div class="card"><small>Active listings</small><b>${act}/${pl.listings>99?"∞":pl.listings}</b><em>${tv?Math.round(100*(enq.length+apps.length)/tv):0}% view→contact</em></div></div>
@@ -612,10 +671,13 @@ const CERTSTL={valid:"Valid",expired:"Expired",revoked:"Revoked",suspended:"Susp
 let AGTAB="feed",AGUSER=null;
 const tkind=t=>t.kind==="renewal"?"Annual re-verification":"New verification";
 function agentView(){const u=DB.user();
- if(!u){AUTHROLE="agent";authView("up");app.insertAdjacentHTML("afterbegin",agentIntro());return}
- if(isStaff(u))return location.hash="#/admin";
+ const root=$("#rolepanel");
+ if(!u){location.hash="#/account";return}
+ if(isStaff(u)){location.hash="#/admin";return}
+ if(!root){location.hash="#/account?role=agent";return}
+ if(!accountRoleHeld(u,"agent"))return;
  if(AGUSER!==u.id){AGUSER=u.id;if(AGTAB!=="profile")AGTAB="feed"}
- if(u.role!=="agent"||!u.agent||AGTAB==="profile")return agentProfile(u);
+ if(!u.agent||AGTAB==="profile")return agentProfile(u);
  const me=u.agent,ok=DB.canInspect(u),cert=DB.certFor(u.id),cst=DB.certStatus(cert),ts=DB.tasks(),L=id=>DB.listing(id);
  const feed=ts.filter(t=>t.status==="open"||(t.status==="offered"&&t.agentId===u.id)).map(t=>({t,l:L(t.listingId),d:DB.km(me,L(t.listingId))})).filter(x=>x.l).sort((a,b)=>(b.t.status==="offered")-(a.t.status==="offered")||a.d-b.d);
  const mine=ts.filter(t=>t.agentId===u.id&&!["open","offered"].includes(t.status)).map(t=>({t,l:L(t.listingId),d:DB.km(me,L(t.listingId))})).filter(x=>x.l).sort((a,b)=>(b.t.acceptedAt||0)-(a.t.acceptedAt||0));
@@ -630,14 +692,14 @@ function agentView(){const u=DB.user();
  if(AGTAB==="mine")body=mine.map(x=>tcard(x,x.t.status==="accepted"?`<button class="pill pill-green sm" data-rep="${x.t.id}">Submit inspection report</button>`:"")).join("")||"<p class='note'>No tasks yet. Accept one from Tasks near me.</p>";
  if(AGTAB==="earn")body=`<div class="kpis"><div class="card"><small>Pending inspections</small><b>${cm.filter(c=>c.status==="pending").length}</b><em>awaiting payout</em></div><div class="card"><small>Paid out</small><b>${cm.filter(c=>c.status==="paid").length}</b><em>inspections</em></div></div>
   <p class="note" style="margin:0 0 10px">Commission varies with property size, distance and time on site. Payouts are confirmed by the REZ team.</p>
-  <div class="list">${cm.slice().reverse().map(c=>{const l=L(c.listingId)||{title:"(listing)"};return`<div class="it"><div><b>${esc(l.title)}</b><br><small class="note">Approved ${D(c.created)}${c.payoutRef?` · payout ref ${esc(c.payoutRef)} (mock)`:""}</small></div><span class="st ${c.status==="pending"?"warn":""}">${K(c.amount)} · ${c.status==="pending"?"Pending":"Paid"}</span></div>`}).join("")||"<p class='note'>No earnings yet. Each approved inspection report adds a commission here.</p>"}</div>`;
- app.innerHTML=`<div class="fade" style="padding-top:20px"><div class="sechead"><h2>REZ Inspector portal</h2></div>
+  <div class="list">${cm.slice().reverse().map(c=>{const l=L(c.listingId)||{title:"(listing)"};return`<div class="it"><div><b>${esc(l.title)}</b><br><small class="note">Approved ${D(c.created)}${c.payoutRef?` · payout ref ${esc(c.payoutRef)}`:""}</small></div><span class="st ${c.status==="pending"?"warn":""}">${K(c.amount)} · ${c.status==="pending"?"Pending":"Paid"}</span></div>`}).join("")||"<p class='note'>No earnings yet. Each approved inspection report adds a commission here.</p>"}</div>`;
+ root.innerHTML=`<div class="role-panel">
  <div class="card box profile"><div class="av">${esc(initials(u.name))}</div><div style="flex:1"><h3 style="margin:0">${esc(u.name)}</h3><p class="note" style="margin:2px 0">${esc(u.phone||"no phone")} · ${esc((me.areas||[]).join(", ")||me.baseCity)}${me.areaText?` · ${esc(me.areaText)}`:""}</p><p style="margin:4px 0 0">${ok?'<span class="st">✓ REZ Certified Inspector</span>':me.status==="suspended"?'<span class="st bad">Suspended</span>':me.status==="rejected"?'<span class="st bad">Changes needed</span>':me.status==="approved"?`<span class="st bad">Certificate ${esc(cst)}</span>`:'<span class="st warn">Waiting for REZ approval</span>'} <small class="note">Agreement ${esc(me.agreementVersion||"")} ticked ${D(me.agreementAt)}</small></p>
  ${cert&&cst!=="none"?`<p class="note" style="margin:4px 0 0">Inspector ID <b>${esc(cert.no)}</b> · ${esc(CERTSTL[cst])} until ${D(cert.expires)}</p>`:""}</div>
- <div class="btns">${cert?`<a class="pill pill-gold sm" id="mycert" href="#/cert/${cert.id}">My certificate</a>`:""}<button class="pill pill-ghost sm" id="loc">📍 Use my location</button><button class="pill pill-ghost sm" id="edit">${me.status==="rejected"?"Update application":"Edit profile"}</button></div></div>
+ <div class="btns">${cert?`<a class="acct-public" id="mycert" href="#/cert/${cert.id}">My certificate</a>`:""}<button class="pill pill-ghost sm" id="loc">📍 Use my location</button><button class="pill pill-ghost sm" id="edit">${me.status==="rejected"?"Update application":"Edit profile"}</button></div></div>
  <div class="tabs">${[["feed","Tasks near me",feed.length],["mine","My tasks",mine.filter(x=>x.t.status==="accepted").length],["earn","Earnings",""]].map(t=>`<button class="${AGTAB===t[0]?"on":""}" data-t="${t[0]}">${t[1]}${t[2]?` <i>${t[2]}</i>`:""}</button>`).join("")}</div>
  <div class="card box"><div class="mylist">${body}</div></div></div>`;
- app.querySelector(".tabs").onclick=e=>{const b=e.target.closest("button");if(b){AGTAB=b.dataset.t;agentView()}};
+ root.querySelector(".tabs").onclick=e=>{const b=e.target.closest("button");if(b){AGTAB=b.dataset.t;agentView()}};
  $("#edit").onclick=()=>{AGTAB="profile";agentView()};const rs=$("#resub");if(rs)rs.onclick=e=>{e.preventDefault();AGTAB="profile";agentView()};
  $("#loc").onclick=()=>{if(!navigator.geolocation)return toast("Location not available on this device");navigator.geolocation.getCurrentPosition(p=>{DB.setAgentLocation(+p.coords.latitude.toFixed(5),+p.coords.longitude.toFixed(5));toast("Sorted by distance from you");agentView()},()=>toast("Location permission denied: using your base town"),{timeout:8000})};
  app.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>{const t=DB.task(b.dataset.acc),l=L(t.listingId);
@@ -663,13 +725,13 @@ function agentInfoPage(){
  <div class="card box"><h3>Commission</h3>
   <p class="note" style="margin:0">Pay depends on the property's size, how far you travel and how long the inspection takes. A large farm is not the same job as a small flat. Rates are agreed with REZ — we don't publish fixed amounts here.</p></div>
  <div class="card box"><h3>How to join</h3>
-  <p class="note">Create an account (you're a tenant by default), open Account, then Apply as agent. We review and approve or decline.</p>
+  <p class="note">Create an account (you're a tenant by default), open Account, then Inspect for REZ. We review and approve or decline.</p>
   <a class="pill pill-gold" href="#/account">Go to Account</a></div></div>`;
 }
-const agentIntro=()=>`<div class="card box agentcta" style="max-width:640px;margin:20px auto 0"><div><h2>Inspect for REZ</h2><p class="note">For people who know property across Zambia. Apply with your ID and experience. Once approved you get a REZ agent ID, a physical ID card and branded gear (vest, t-shirt, cap). Carry your ID on every visit. Commission varies with property size, travel distance and how long the inspection takes — we don't publish fixed rates here. A handbook comes with your kit.</p></div></div>`;
 const CHECKS=[["photosMatch","Photos match the property"],["claimsTrue","Rent, deposit, upfront and yard claims are true"],["addressCorrect","Address and map pin are correct"],["amenitiesPresent","Listed amenities are present"],["habitable","Safe and habitable (water, power, locks, roof)"]];
-function agentProfile(u){const a=u.agent||{},first=!a.agreementAt,rej=a.status==="rejected";let city=a.baseCity||"Lusaka",areas=[...(a.areas||[])],av=[...(a.availability||[])],lic=a.licenceType||"none",docs=[...(a.docs||[])];
- app.innerHTML=`<div class="fade" style="max-width:640px;margin:20px auto"><div class="card box"><div class="sechead"><h2 style="font-size:24px">${first?"Apply to be a REZ inspector":rej?"Update your inspector application":"Edit inspector profile"}</h2></div>
+function agentProfile(u){const root=$("#rolepanel");if(!root){location.hash="#/account?role=agent";return}
+ const a=u.agent||{},first=!a.agreementAt,rej=a.status==="rejected";let city=a.baseCity||"Lusaka",areas=[...(a.areas||[])],av=[...(a.availability||[])],lic=a.licenceType||"none",docs=[...(a.docs||[])];
+ root.innerHTML=`<div class="role-panel"><div class="card box"><div class="sechead"><h2 style="font-size:24px">${first?"Apply to be a REZ inspector":rej?"Update your inspector application":"Edit inspector profile"}</h2></div>
  <p class="note">Real estate agents don't lose out on REZ: you inspect and verify properties for us, on your own time, and earn a commission for each approved report. REZ reviews every application before you can take tasks.</p>
  ${rej?`<div class="gate"><b>REZ couldn't approve your application yet.</b> ${a.reviewNote?`Reason: <i>${esc(a.reviewNote)}</i>`:""} Fix it below and resubmit.</div>`:""}
  <form class="f" id="agf"><input name="name" required placeholder="Full name" value="${esc(u.name)}"><input name="phone" required placeholder="Phone / WhatsApp (e.g. 097...)" value="${esc(u.phone||"")}">
@@ -781,11 +843,13 @@ function setupWhatsAppFloatBehaviour(){
 setupWhatsAppFloatBehaviour();
 
 // ---------- Router ----------
-function route(keep){if(keep!==true)closeSheet();const h=location.hash.replace(/^#\/?/,""),[r,id]=h.split("/");
- if(h==="search"||h==="listings"||h==="pricing"||h==="contact"||h==="agents"){if(!$("#car")){clearMaps();home()}document.getElementById(h==="search"?"search":h)?.scrollIntoView();return}
- clearMaps();if(keep!==true)scrollTo(0,0);({"":home,map:mapView,saved:savedView,account,landlord,admin,inbox,agent:agentView,"agent-info":agentInfoPage,cert:()=>certView(id),l:()=>detail(id)}[r]||home)();
- document.querySelectorAll(".bnav a,.dnav a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#/"+(r||"")));
- const u=DB.user(),pb=$("#pbtn");if(pb){pb.textContent=u?(u.name||"?")[0].toUpperCase():"☺";pb.href=u?(isStaff(u)?"#/admin":u.role==="landlord"?"#/landlord":u.role==="agent"?"#/agent":"#/account"):"#/account";pb.title=u?"My profile":"Sign in"}
+function route(keep){if(keep!==true)closeSheet();const {path,r,id}=hashParts();
+ if(r==="landlord"){location.hash="#/account?role=landlord";return}
+ if(r==="agent"){location.hash="#/account?role=agent";return}
+ if(path==="search"||path==="listings"||path==="pricing"||path==="contact"||path==="agents"){if(!$("#car")){clearMaps();home()}document.getElementById(path==="search"?"search":path)?.scrollIntoView();return}
+ clearMaps();if(keep!==true)scrollTo(0,0);({"":home,map:mapView,saved:savedView,account,admin,inbox,"agent-info":agentInfoPage,cert:()=>certView(id),l:()=>detail(id)}[r]||home)();
+ document.querySelectorAll(".bnav a,.dnav a").forEach(a=>{const key=(a.getAttribute("href")||"").replace(/^#\/?/,"").split("?")[0].split("/")[0];a.classList.toggle("on",key===r)});
+ const u=DB.user(),pb=$("#pbtn");if(pb){pb.textContent=u?(u.name||"?")[0].toUpperCase():"☺";pb.href=!u?"#/account":isStaff(u)?"#/admin":"#/account"+(u.lastRole?`?role=${u.lastRole}`:"");pb.title=u?"My profile":"Sign in"}
  route2();
 }
 addEventListener("hashchange",()=>route());route();

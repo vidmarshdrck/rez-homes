@@ -56,6 +56,13 @@ assert.strictEqual(boostQuote(0).weeks, 1);
 assert.strictEqual(boostQuote(99).weeks, 20);
 assert.strictEqual(BOOST.recommendedWeeks, 5);
 
+const fs = require("fs");
+const path = require("path");
+const cfg = fs.readFileSync(path.join(__dirname, "..", "config.js"), "utf8");
+assert.match(cfg, /BOOST_DISCOUNT_ENABLED:\s*false/);
+const app = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
+assert.match(app, /allowDisc=\!\!CFG\.BOOST_DISCOUNT_ENABLED/);
+
 console.log("boost-formula.test.js: all assertions passed");
 console.log("Weekly rate used: K" + BOOST.week);
 console.log("Formula: plan.base + weeks × K" + BOOST.week + " (= estimated); discount on boost part; floor K" + FLOOR + "/wk");

@@ -317,3 +317,31 @@ s.was{color:#9aa69f;font-weight:600;font-size:.62em;text-decoration-thickness:2p
 .bestline b{color:var(--g);font-size:18px}
 .boostcalc .chips{margin-bottom:10px;flex-wrap:wrap;gap:6px}
 .phnote-cap{font-size:12px}
+
+/* Account role switch — left-aligned text, not a .seg pill track */
+.role-status{margin:2px 0 0}
+.role-pending{margin:0;color:var(--mut);font-size:14px;font-weight:500;line-height:1.45}
+.role-apply{display:flex;flex-wrap:wrap;align-items:center;gap:0 18px;margin:0}
+.role-quiet{appearance:none;border:0;background:transparent;border-radius:0;box-shadow:none;padding:10px 0;min-height:44px;color:var(--mut);font:600 15px/1.2 Inter,system-ui,sans-serif;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;cursor:pointer}
+.role-quiet:hover{color:var(--ink);box-shadow:none}
+.role-toggle{display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-start;width:100%;margin:2px 0 14px;padding:0 0 4px;border:0;border-bottom:1px solid #E6EBE8;border-radius:0;background:transparent}
+.role-word{position:relative;appearance:none;border:0;background:transparent;border-radius:0;box-shadow:none;color:var(--mut);font:600 17px/1.2 Inter,system-ui,sans-serif;min-height:44px;padding:12px 13px 14px;cursor:pointer;letter-spacing:0;transition:color .15s ease}
+.role-word::after{content:"";position:absolute;left:13px;right:13px;bottom:8px;height:2px;border-radius:1px;background:#0B8A4A;opacity:0;transition:opacity .15s ease}
+.role-word.on{color:#0B8A4A;font-weight:800}
+.role-word.on::after{opacity:1}
+.role-word:hover{box-shadow:none}
+.role-word:focus-visible{outline:2px solid #0B8A4A;outline-offset:2px}
+.role-dot{color:#C5CEC8;font-weight:500;font-size:17px;line-height:1;padding:0;user-select:none}
+.acct-signout{appearance:none;border:0;background:transparent;border-radius:0;box-shadow:none;color:var(--mut);font:600 14px/1 Inter,system-ui,sans-serif;min-height:44px;padding:10px 0;cursor:pointer}
+.acct-signout:hover{color:var(--ink);box-shadow:none}
+.acct-public{color:var(--mut);font-weight:600;font-size:14px;text-decoration:underline;text-underline-offset:3px}
+.acct-public-row{margin:8px 0 0}
+@media(max-width:759px){
+  .role-word,.role-dot{font-size:16px}
+  .role-quiet{font-size:15px}
+}
+@media(max-width:319px){
+  .role-toggle.is-three{flex-wrap:wrap;letter-spacing:-.03em}
+  .role-toggle.is-three .role-word{letter-spacing:-.03em;padding-left:8px;padding-right:8px}
+  .role-toggle.is-three .role-word::after{left:8px;right:8px}
+}
