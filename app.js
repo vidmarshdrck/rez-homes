@@ -132,19 +132,19 @@ function bindBoost(root,onChange){const el=root&&root.querySelector(".bw");if(!e
 function packageBoostLine(planId,weeks,pct=0){const x=DB.packageBoostQuote(planId,weeks,pct);const boostPart=x.total<x.was?`${K(x.weekRate)} (−${x.pct}%)`:`${K(x.weekRate)}`;
  return{...x,html:`${K(x.base)} + ${x.weeks} week${x.weeks>1?"s":""} × ${boostPart} = <b>${K(x.estimated)}</b>`,text:`${K(x.base)} + ${x.weeks} weeks × ${K(x.weekRate)} = ${K(x.estimated)}`}}
 // v5: "Apply for a discount". One offer per listing, held for BOOST_DISCOUNT_OFFER_HOURS, so re-ticking or reloading shows the same offer.
-function boostSheet(l){const band=DB.discountBand();let offer=DB.boostOffer(l.id),on=!!offer;const paused="Discount offers are paused while boost demand is high. Check again later.";
+function boostSheet(l){const allowDisc=!!CFG.BOOST_DISCOUNT_ENABLED;const band=allowDisc?DB.discountBand():{off:true};let offer=allowDisc?DB.boostOffer(l.id):null,on=!!offer;const paused="Discount offers are paused while boost demand is high. Check again later.";
  sheet(`<h3>Boost: ${esc(l.title)}</h3><p class="note" style="margin:0">Shown first in search with a gold ★ Featured badge. Pick how many weeks.</p>${boostWidget(BOOST.recommendedWeeks)}
- <div class="card box disc" id="bdbox"><label class="ck"><input type="checkbox" id="bdisc" ${on?"checked":""} ${band.off&&!offer?"disabled":""}> Apply for a discount </label>
+ ${allowDisc?`<div class="card box disc" id="bdbox"><label class="ck"><input type="checkbox" id="bdisc" ${on?"checked":""} ${band.off&&!offer?"disabled":""}> Apply for a discount </label>
   <p class="note" id="bdnote" style="margin:0">${band.off&&!offer?paused:`Tick to see your discount offer: ${band.min}% to ${band.max}% off, depending on current demand. One offer per listing, held for ${CFG.BOOST_DISCOUNT_OFFER_HOURS} hours. A boost never costs less than ${K(CFG.BOOST_PRICE_FLOOR_PER_WEEK)} a week.`}</p>
-  <div id="boffer" class="offer hide"></div></div>
+  <div id="boffer" class="offer hide"></div></div>`:""}
  <p class="note" style="margin:0" id="bwend"></p><button class="pill pill-gold" id="bwgo">Continue to payment</button><button class="pill pill-ghost" id="cx">Cancel</button>`);
  const q=w=>on&&offer?DB.boostQuote(w,offer.pct,offer):DB.boostQuote(w,0);
  const paint=w=>{$("#bwend").textContent=`Featured until about ${D(Math.max(DB.now(),l.boostUntil||0)+w*7*DB.DAY)}.`;const x=q(w);
   $("#sheet .bwtotal").innerHTML=x.total<x.was?`<s class="was">${K(x.was)}</s> ${K(x.total)}`:K(x.total);
-  const bo=$("#boffer");if(!(on&&offer))return bo.classList.add("hide");bo.classList.remove("hide");
+  const bo=$("#boffer");if(!bo)return;if(!(on&&offer))return bo.classList.add("hide");bo.classList.remove("hide");
   bo.innerHTML=`<div class="sechead"><b>Your discount offer</b><span class="offpct">${offer.pct}% off</span></div><p class="offline">Was <s class="was">${K(x.was)}</s> · now <b class="now">${K(x.total)}</b> for ${w} week${w>1?"s":""} · you save ${K(x.saved)}</p><small class="note">${x.floorApplied?`Capped at the ${K(offer.floorPerWeek)}/week minimum price. `:""}Held for this listing until ${esc(new Date(offer.expires).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}))}.</small>`};
  const gw=bindBoost($("#sheet"),paint);paint(gw());
- const cb=$("#bdisc");cb.onchange=()=>{if(cb.checked){try{offer=DB.getBoostOffer(l.id)}catch(e){cb.checked=false;return toast(e.message)}
+ const cb=$("#bdisc");if(cb)cb.onchange=()=>{if(cb.checked){try{offer=DB.getBoostOffer(l.id)}catch(e){cb.checked=false;return toast(e.message)}
    if(!offer){cb.checked=false;cb.disabled=true;$("#bdnote").textContent=paused;on=false}else on=true}else on=false;paint(gw())};
  $("#cx").onclick=closeSheet;
  $("#bwgo").onclick=()=>{const w=gw(),x=q(w),d=on&&offer&&x.total<x.was?{offerId:offer.id,pct:offer.pct,was:x.was,floorApplied:x.floorApplied}:null;

@@ -15,7 +15,7 @@ window.REZ_CONFIG = {
     { id: "pro",      name: "Pro",      price: 1000, listings: 9999, photos: 30, tier: 2, perks: ["Unlimited listings", "30 photos each", "Featured on homepage", "Social media promotion", "Monthly performance report"] }
   ],
   BOOST: { week: 100, minWeeks: 1, maxWeeks: 20, recommendedWeeks: 5 },
-  BOOST_DISCOUNT_ENABLED: true,
+  BOOST_DISCOUNT_ENABLED: false,         // off until Justus Q12 (random discounts) is cleared
   BOOST_DISCOUNT_MIN_PCT: 5,
   BOOST_DISCOUNT_MAX_PCT: 15,
   BOOST_PRICE_FLOOR_PER_WEEK: 85,
